@@ -16,7 +16,7 @@ python test_studio.py
 ```
 If that branch no longer exists on origin, use the default branch instead. If the directory is missing, `git clone https://github.com/abhijyotiba/linkedin-test` first. Read `config.yaml` fully. Dates/times are in `config.timezone`.
 
-**Restore fallback:** if the branch is not on origin (GitHub write access was never granted), restore the project from the private artifact named "LinkedIn Studio" (`Artifact list`, then `Artifact read` with `paths` for every published file, `out_dir` = the repo directory), then `git checkout -B claude/dreamy-keller-22jfw9 && git add -A && git commit -m "restore"`.
+**Restore fallback:** if the branch is not on origin (GitHub write access was never granted), restore the project from the private artifact https://claude.ai/artifact/6aJvvsM2bFKXxrmyadPEdE (`Artifact list` scope files, then `Artifact read` with `paths` for every published file, `out_dir` = the repo directory), then `git checkout -B claude/dreamy-keller-22jfw9 && git add -A && git commit -m "restore"`.
 **Push fallback:** if `git push` is refused (403), try the GitHub MCP `push_files` (owner `abhijyotiba`, repo `linkedin-test`); if that is refused too, republish the "LinkedIn Studio" artifact with the changed files added to `files` (content JSON + PDF, data CSV/JSONL, config) so the next run can restore them. Say in the summary that GitHub still needs the Claude GitHub App installed on abhijyotiba/linkedin-test.
 **Email fallback:** if the Gmail `send_message` tool is not available, put the full kit in your final message.
 
@@ -42,7 +42,7 @@ Target date = the next weekday (Mon–Fri) after today, in `config.timezone`. If
    python studio.py brief  content/<date>.json > /tmp/brief.html
    git add content data && git commit -m "kit: <date> <day_type>" && git push -u origin HEAD
    ```
-8. **Email the kit** with the Gmail `send_message` tool: `to` = `config.brief_to`, `subject` = `LinkedIn kit · <date> · <hook>`, `htmlBody` = contents of /tmp/brief.html, and if the PDF exists attach it (`filename: <date>.pdf`, `mimeType: application/pdf`, `content` = `base64 -w0 content/<date>.pdf`). If Gmail is unavailable, write the brief into the final message instead.
+8. **Email the kit** with the Gmail `send_message` tool: `to` = `config.brief_to`, `subject` = `LinkedIn kit · <date> · <hook>`, `htmlBody` = contents of /tmp/brief.html. Always attach `content/<date>.json` (tiny). If the push to GitHub succeeded, set `pdf_url` in the JSON to `https://raw.githubusercontent.com/abhijyotiba/linkedin-test/claude/dreamy-keller-22jfw9/content/<date>.pdf` before running `brief`; otherwise attach the PDF only if it is under 100 KB, else the brief's "run render on the attached JSON" line covers it. If Gmail is unavailable, write the brief into the final message instead.
 9. Final message: date, day_type, hook, whether PDF was attached, commit hash.
 
 ## 2. MORNING run — go live (Agents 2, 5)

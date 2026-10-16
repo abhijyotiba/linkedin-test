@@ -277,7 +277,11 @@ def brief(path):
     out = [f"<h1 style='font:700 22px system-ui'>LinkedIn kit · {e(c['date'])} · {e(c.get('day_type', ''))}</h1>"]
     out += [sec("1 · Post (copy, paste, publish)"), pre(c["post"]["text"])]
     if c.get("carousel"):
-        out += [sec("2 · Carousel"), f"<p>PDF attached: <b>{e(c['carousel']['title'])}</b> ({len(c['carousel']['slides']) + 2} slides). Upload it as a document with the post.</p>"]
+        car = c["carousel"]
+        out += [sec("2 · Carousel (upload the PDF as a document with the post)"),
+                f"<p><b>{e(car['title'])}</b> · {e(car.get('subtitle', ''))} · {len(car['slides']) + 2} slides</p>",
+                "<ol>" + "".join(f"<li><b>{e(sl['title'])}</b> {e(sl.get('body', ''))}</li>" for sl in car["slides"]) + f"<li>CTA: {e(car.get('cta', ''))}</li></ol>",
+                f"<p>PDF: {e(c.get('pdf_url') or 'see attachment, or run  python studio.py render  on the attached JSON')}</p>"]
     out += [sec("3 · Your 2 first-30-min comments (post one, keep one for a reply)")]
     out += [pre(t) for t in c.get("self_comments", [])]
     out += [sec("4 · Engagement Engine: 10 comments on big creators (before you post)")]
