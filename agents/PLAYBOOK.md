@@ -14,7 +14,9 @@ git fetch origin claude/dreamy-keller-22jfw9 && git checkout claude/dreamy-kelle
 pip install -q -r requirements.txt
 python test_studio.py
 ```
-If that branch no longer exists on origin, use the default branch instead. Read `config.yaml` fully. Dates/times are in `config.timezone`.
+If that branch no longer exists on origin, use the default branch instead. If the directory is missing, `git clone https://github.com/abhijyotiba/linkedin-test` first. Read `config.yaml` fully. Dates/times are in `config.timezone`.
+
+**Push fallback:** if `git push` is refused (403), push the changed files with the GitHub MCP tool `push_files` (owner `abhijyotiba`, repo `linkedin-test`, branch as above, same commit message). **Email fallback:** if the Gmail `send_message` tool is not available, put the full kit in your final message.
 
 ## 1. EVENING run — build tomorrow's kit (Agents 1, 2, 3, 4, 5)
 
