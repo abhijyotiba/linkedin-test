@@ -14,43 +14,153 @@
     "subtitle": "What Klarna's reversal teaches every support leader",
     "cta": "Comment \"audit\" for the 5-step checklist",
     "slides": [
-      {"title": "Klarna cut 700 agents", "body": "Cost fell. Quality fell faster. In 2025 the CEO admitted it and started rehiring humans."},
-      {"title": "The mistake is the unit", "body": "They automated headcount. The unit of automation is a ticket type, not a person."},
-      {"title": "Let AI close the boring 70%", "body": "Order status, warranty proof, password resets, invoice copies. Predictable, repetitive, measurable."},
-      {"title": "Keep humans for the hard 30%", "body": "Refund exceptions, angry VIPs, legal. One sharp human here beats five on easy tickets."},
-      {"title": "Measure resolution, not deflection", "body": "\"Was it solved\" is the metric. Deflection just hides the ticket until it comes back angrier."}
+      {
+        "title": "Klarna cut 700 agents",
+        "body": "Cost fell. Quality fell faster. In 2025 the CEO admitted it and started rehiring humans."
+      },
+      {
+        "title": "The mistake is the unit",
+        "body": "They automated headcount. The unit of automation is a ticket type, not a person."
+      },
+      {
+        "title": "Let AI close the boring 70%",
+        "body": "Order status, warranty proof, password resets, invoice copies. Predictable, repetitive, measurable."
+      },
+      {
+        "title": "Keep humans for the hard 30%",
+        "body": "Refund exceptions, angry VIPs, legal. One sharp human here beats five on easy tickets."
+      },
+      {
+        "title": "Measure resolution, not deflection",
+        "body": "\"Was it solved\" is the metric. Deflection just hides the ticket until it comes back angrier."
+      }
     ]
   },
   "engagement_comments": [
-    {"creator": "Allie K. Miller", "topic": "AI adoption inside companies", "comment": "The adoption gap I see is permission, not tooling.\nTeams ship 3x faster the week a VP says \"you will not be blamed for trying\".\nWho owns that permission in most orgs you work with?"},
-    {"creator": "Ethan Mollick", "topic": "how people actually use AI at work", "comment": "Your point about jagged capability shows up hard in support.\nThe same model that nails warranty claims fails a refund exception with a sad customer.\nDo you see teams mapping that jagged edge before they automate, or after it bites?"},
-    {"creator": "Andrew Ng", "topic": "agentic workflows", "comment": "Agentic workflows win on the boring tickets first.\nAt most brands 60 to 70% of volume is order status and proof-of-purchase, perfect for a reflect-and-retry loop.\nWhat is the smallest agentic loop you would recommend a support team start with?"},
-    {"creator": "Ruben Hassid", "topic": "AI tools + LinkedIn growth", "comment": "The 360Brew shift makes this concrete: profile and post topic now have to match.\nI tightened my headline to the one thing I post about and the dwell time doubled.\nDo you still see template-style posts getting suppressed this month?"},
-    {"creator": "Zain Kahn", "topic": "AI productivity", "comment": "Productivity gains stall when nobody owns the handoff.\nAI drafts the reply, a human approves, and the approval queue becomes the new bottleneck.\nHave you seen a team fix the approval step without just removing it?"},
-    {"creator": "Rowan Cheung", "topic": "daily AI news", "comment": "Zendesk's 1M Custom Agent executions in 7 weeks is the stat of the month for support.\nThe interesting part: they are now reporting resolution, not deflection.\nIs that metric shift showing up in the other vendor announcements you track?"},
-    {"creator": "Greg Isenberg", "topic": "startup ideas", "comment": "Underrated niche: AI support for brands that honour lifetime warranties across 5 to 17 sales channels.\nEvery claim needs proof of purchase, photos and a model number, and the volume never stops.\nWould you build that as a vertical product or a service first?"},
-    {"creator": "Lenny Rachitsky", "topic": "product and growth", "comment": "Support tickets are the cheapest product research most PMs ignore.\nTag the top 10 intents for 30 days and the roadmap writes itself.\nDo the best PM teams you know own a support metric directly?"},
-    {"creator": "Ankur Warikoo", "topic": "careers for India professionals", "comment": "Top 5 Indian IT firms added 17 net employees in 9 months, versus 17,764 the year before.\nThe jobs are moving to people who can run AI on real workflows, not just talk about it.\nWhat is the first skill you would tell a 2nd-year engineer to build this month?"},
-    {"creator": "Kunal Shah", "topic": "India startups, contrarian takes", "comment": "Contrarian take back at you: AI will create more support tickets, not fewer.\nPersonal agents will contact businesses on behalf of customers, so volume rises while each ticket gets cheaper.\nWhich Indian consumer category feels that first?"}
+    {
+      "creator": "Allie K. Miller",
+      "topic": "AI adoption inside companies",
+      "comment": "The adoption gap I see is permission, not tooling.\nTeams ship 3x faster the week a VP says \"you will not be blamed for trying\".\nWho owns that permission in most orgs you work with?"
+    },
+    {
+      "creator": "Ethan Mollick",
+      "topic": "how people actually use AI at work",
+      "comment": "Your point about jagged capability shows up hard in support.\nThe same model that nails warranty claims fails a refund exception with a sad customer.\nDo you see teams mapping that jagged edge before they automate, or after it bites?"
+    },
+    {
+      "creator": "Andrew Ng",
+      "topic": "agentic workflows",
+      "comment": "Agentic workflows win on the boring tickets first.\nAt most brands 60 to 70% of volume is order status and proof-of-purchase, perfect for a reflect-and-retry loop.\nWhat is the smallest agentic loop you would recommend a support team start with?"
+    },
+    {
+      "creator": "Ruben Hassid",
+      "topic": "AI tools + LinkedIn growth",
+      "comment": "The 360Brew shift makes this concrete: profile and post topic now have to match.\nI tightened my headline to the one thing I post about and the dwell time doubled.\nDo you still see template-style posts getting suppressed this month?"
+    },
+    {
+      "creator": "Zain Kahn",
+      "topic": "AI productivity",
+      "comment": "Productivity gains stall when nobody owns the handoff.\nAI drafts the reply, a human approves, and the approval queue becomes the new bottleneck.\nHave you seen a team fix the approval step without just removing it?"
+    },
+    {
+      "creator": "Rowan Cheung",
+      "topic": "daily AI news",
+      "comment": "Zendesk's 1M Custom Agent executions in 7 weeks is the stat of the month for support.\nThe interesting part: they are now reporting resolution, not deflection.\nIs that metric shift showing up in the other vendor announcements you track?"
+    },
+    {
+      "creator": "Greg Isenberg",
+      "topic": "startup ideas",
+      "comment": "Underrated niche: AI support for brands that honour lifetime warranties across 5 to 17 sales channels.\nEvery claim needs proof of purchase, photos and a model number, and the volume never stops.\nWould you build that as a vertical product or a service first?"
+    },
+    {
+      "creator": "Lenny Rachitsky",
+      "topic": "product and growth",
+      "comment": "Support tickets are the cheapest product research most PMs ignore.\nTag the top 10 intents for 30 days and the roadmap writes itself.\nDo the best PM teams you know own a support metric directly?"
+    },
+    {
+      "creator": "Ankur Warikoo",
+      "topic": "careers for India professionals",
+      "comment": "Top 5 Indian IT firms added 17 net employees in 9 months, versus 17,764 the year before.\nThe jobs are moving to people who can run AI on real workflows, not just talk about it.\nWhat is the first skill you would tell a 2nd-year engineer to build this month?"
+    },
+    {
+      "creator": "Kunal Shah",
+      "topic": "India startups, contrarian takes",
+      "comment": "Contrarian take back at you: AI will create more support tickets, not fewer.\nPersonal agents will contact businesses on behalf of customers, so volume rises while each ticket gets cheaper.\nWhich Indian consumer category feels that first?"
+    }
   ],
   "connection_requests": [
-    {"who": "Head of Customer Experience @ US DTC home-fixture brand", "why": "hiring manager; drowning in warranty claims across dealer channels", "message": "Hey [Name], saw your post on warranty claim volume. The point about proof-of-purchase friction across dealer channels hit me. Building in the same space at Product Labs, would love to connect."},
-    {"who": "Founder @ NetSuite / Boomi consultancy with a managed-support retainer", "why": "founder; L1 volume eats retainer margin", "message": "Hey [Name], saw your post on managed-support retainers. The point about L1 tickets eating the margin hit me. Building in the same space, would love to connect."},
-    {"who": "VP Support @ Indian SaaS scale-up (Series B+)", "why": "hiring manager; scaling support without headcount", "message": "Hey [Name], saw your post on scaling support without adding headcount. The point about measuring resolution instead of deflection hit me. Building in the same space, would love to connect."},
-    {"who": "COO @ D2C brand selling on 5+ marketplaces", "why": "decision maker; multi-channel ticket chaos", "message": "Hey [Name], saw your post on multi-marketplace operations. The point about order-status tickets coming from every channel hit me. Building in the same space, would love to connect."},
-    {"who": "Director of CX Operations @ fintech (India or US)", "why": "hiring manager; Klarna-style AI pressure", "message": "Hey [Name], saw your post on AI in CX ops. The point about keeping humans for refund exceptions hit me. Building in the same space, would love to connect."},
-    {"who": "AI automation engineer @ agency", "why": "peer; builds support agents", "message": "Hey [Name], saw your post on building support agents. The point about intent tagging before automation hit me. Building in the same space, would love to connect."},
-    {"who": "Zendesk / Intercom solutions consultant", "why": "peer; implements the tools TixA plugs into", "message": "Hey [Name], saw your post on Zendesk Custom Agents. The point about handoff design hit me. Building in the same space, would love to connect."},
-    {"who": "GenAI consultant, independent (India)", "why": "peer; referral partner", "message": "Hey [Name], saw your post on GenAI pilots that never reach production. The point about picking one workflow hit me. Building in the same space, would love to connect."},
-    {"who": "Product manager, support tooling @ SaaS", "why": "peer; owns the roadmap we integrate with", "message": "Hey [Name], saw your post on support tooling roadmaps. The point about tickets being free product research hit me. Building in the same space, would love to connect."},
-    {"who": "Founder @ early-stage AI agent startup (India)", "why": "peer; swap notes on evals and resolution metrics", "message": "Hey [Name], saw your post on agent evals. The point about measuring resolution instead of task completion hit me. Building in the same space, would love to connect."}
+    {
+      "who": "Head of Customer Experience @ US DTC home-fixture brand",
+      "why": "hiring manager; drowning in warranty claims across dealer channels",
+      "message": "Hey [Name], saw your post on warranty claim volume. The point about proof-of-purchase friction across dealer channels hit me. Building in the same space at Product Labs, would love to connect."
+    },
+    {
+      "who": "Founder @ NetSuite / Boomi consultancy with a managed-support retainer",
+      "why": "founder; L1 volume eats retainer margin",
+      "message": "Hey [Name], saw your post on managed-support retainers. The point about L1 tickets eating the margin hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "VP Support @ Indian SaaS scale-up (Series B+)",
+      "why": "hiring manager; scaling support without headcount",
+      "message": "Hey [Name], saw your post on scaling support without adding headcount. The point about measuring resolution instead of deflection hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "COO @ D2C brand selling on 5+ marketplaces",
+      "why": "decision maker; multi-channel ticket chaos",
+      "message": "Hey [Name], saw your post on multi-marketplace operations. The point about order-status tickets coming from every channel hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "Director of CX Operations @ fintech (India or US)",
+      "why": "hiring manager; Klarna-style AI pressure",
+      "message": "Hey [Name], saw your post on AI in CX ops. The point about keeping humans for refund exceptions hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "AI automation engineer @ agency",
+      "why": "peer; builds support agents",
+      "message": "Hey [Name], saw your post on building support agents. The point about intent tagging before automation hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "Zendesk / Intercom solutions consultant",
+      "why": "peer; implements the tools TixA plugs into",
+      "message": "Hey [Name], saw your post on Zendesk Custom Agents. The point about handoff design hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "GenAI consultant, independent (India)",
+      "why": "peer; referral partner",
+      "message": "Hey [Name], saw your post on GenAI pilots that never reach production. The point about picking one workflow hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "Product manager, support tooling @ SaaS",
+      "why": "peer; owns the roadmap we integrate with",
+      "message": "Hey [Name], saw your post on support tooling roadmaps. The point about tickets being free product research hit me. Building in the same space, would love to connect."
+    },
+    {
+      "who": "Founder @ early-stage AI agent startup (India)",
+      "why": "peer; swap notes on evals and resolution metrics",
+      "message": "Hey [Name], saw your post on agent evals. The point about measuring resolution instead of task completion hit me. Building in the same space, would love to connect."
+    }
   ],
   "dms": [
-    {"to": "anyone who commented \"audit\"", "message": "Thanks for the comment. Here is the 5-step ticket audit we run, no strings attached: 1) export 30 days of tickets, 2) tag the top 10 intents, 3) mark what needs judgement, 4) price a human reply (loaded cost ÷ tickets per hour), 5) automate one intent at a time and measure resolution weekly. Happy to look at your intent list if you want a second pair of eyes."},
-    {"to": "someone who disagreed in the comments", "message": "Appreciate you pushing back, that is the point of a Friday post. Genuinely curious which ticket type burned you with automation. I have seen refund exceptions go wrong more than anything else."},
-    {"to": "a support leader who liked the post", "message": "Saw you engaged with the Klarna post. One thing I did not fit in: the teams that kept quality measured cost per resolved ticket before and after. If you want the one-line formula we use, it is loaded cost ÷ resolved tickets per hour. Nothing to sell, just useful."},
-    {"to": "a consultant who reposted", "message": "Thanks for the repost. If any of your clients sell managed support, the L1 margin point tends to land hard with them. Happy to share the one-page version you can forward."},
-    {"to": "a recruiter or hiring manager who viewed the profile", "message": "Noticed you stopped by my profile after the Klarna post. If you are figuring out where AI fits in a support team, I am glad to share what we have seen work (and what did not). No pitch."}
+    {
+      "to": "anyone who commented \"audit\"",
+      "message": "Thanks for the comment. Here is the 5-step ticket audit we run, no strings attached: 1) export 30 days of tickets, 2) tag the top 10 intents, 3) mark what needs judgement, 4) price a human reply (loaded cost ÷ tickets per hour), 5) automate one intent at a time and measure resolution weekly. Happy to look at your intent list if you want a second pair of eyes."
+    },
+    {
+      "to": "someone who disagreed in the comments",
+      "message": "Appreciate you pushing back, that is the point of a Friday post. Genuinely curious which ticket type burned you with automation. I have seen refund exceptions go wrong more than anything else."
+    },
+    {
+      "to": "a support leader who liked the post",
+      "message": "Saw you engaged with the Klarna post. One thing I did not fit in: the teams that kept quality measured cost per resolved ticket before and after. If you want the one-line formula we use, it is loaded cost ÷ resolved tickets per hour. Nothing to sell, just useful."
+    },
+    {
+      "to": "a consultant who reposted",
+      "message": "Thanks for the repost. If any of your clients sell managed support, the L1 margin point tends to land hard with them. Happy to share the one-page version you can forward."
+    },
+    {
+      "to": "a recruiter or hiring manager who viewed the profile",
+      "message": "Noticed you stopped by my profile after the Klarna post. If you are figuring out where AI fits in a support team, I am glad to share what we have seen work (and what did not). No pitch."
+    }
   ],
   "ideas_bank": [
     "Your support team is 70% busywork.",
@@ -65,5 +175,6 @@
     "Zendesk CEO: personal AI agents may sharply increase the number of support interactions businesses must handle — https://www.newsweek.com/zendesk-ceo-ai-agents-could-reshape-customer-service-12580590",
     "Top 5 Indian IT firms added 17 net employees in the first 9 months of FY26 vs 17,764 a year earlier; AI roles +16% while overall IT hiring -3% — https://www.computerworld.com/article/4119064/ai-boom-hiring-bust-indian-it-firms-add-just-17-net-employees-in-nine-months.html",
     "LinkedIn's 360Brew model ranks on profile-topic match, saves, comments and dwell time; template-style AI content and external links are penalised, hashtags no longer drive reach — https://www.trustinsights.ai/blog/2026/10/so-what-whats-new-with-the-linkedin-algorithm/"
-  ]
+  ],
+  "pdf_url": "https://claude.ai/artifact/6aJvvsM2bFKXxrmyadPEdE"
 }

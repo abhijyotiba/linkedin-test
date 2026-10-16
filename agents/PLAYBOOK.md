@@ -42,7 +42,7 @@ Target date = the next weekday (Mon–Fri) after today, in `config.timezone`. If
    python studio.py brief  content/<date>.json > /tmp/brief.html
    git add content data && git commit -m "kit: <date> <day_type>" && git push -u origin HEAD
    ```
-8. **Email the kit** with the Gmail `send_message` tool: `to` = `config.brief_to`, `subject` = `LinkedIn kit · <date> · <hook>`, `htmlBody` = contents of /tmp/brief.html. Always attach `content/<date>.json` (tiny). If the push to GitHub succeeded, set `pdf_url` in the JSON to `https://raw.githubusercontent.com/abhijyotiba/linkedin-test/claude/dreamy-keller-22jfw9/content/<date>.pdf` before running `brief`; otherwise attach the PDF only if it is under 100 KB, else the brief's "run render on the attached JSON" line covers it. If Gmail is unavailable, write the brief into the final message instead.
+8. **Email the kit** with the Gmail `send_message` tool: `to` = `config.brief_to`, `subject` = `LinkedIn kit · <date> · <hook>`, `htmlBody` = contents of /tmp/brief.html. No attachments (they cost too much to pass inline). Before running `brief`, set `pdf_url` in the JSON to `https://raw.githubusercontent.com/abhijyotiba/linkedin-test/claude/dreamy-keller-22jfw9/content/<date>.pdf` if the push to GitHub succeeded, otherwise to `https://claude.ai/artifact/6aJvvsM2bFKXxrmyadPEdE` (the artifact lists the JSON and PDF under Project files after you republish). If Gmail is unavailable, write the brief into the final message instead.
 9. Final message: date, day_type, hook, whether PDF was attached, commit hash.
 
 ## 2. MORNING run — go live (Agents 2, 5)
