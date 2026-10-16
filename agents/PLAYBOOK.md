@@ -16,7 +16,9 @@ python test_studio.py
 ```
 If that branch no longer exists on origin, use the default branch instead. If the directory is missing, `git clone https://github.com/abhijyotiba/linkedin-test` first. Read `config.yaml` fully. Dates/times are in `config.timezone`.
 
-**Push fallback:** if `git push` is refused (403), push the changed files with the GitHub MCP tool `push_files` (owner `abhijyotiba`, repo `linkedin-test`, branch as above, same commit message). **Email fallback:** if the Gmail `send_message` tool is not available, put the full kit in your final message.
+**Restore fallback:** if the branch is not on origin (GitHub write access was never granted), restore the project from the private artifact named "LinkedIn Studio" (`Artifact list`, then `Artifact read` with `paths` for every published file, `out_dir` = the repo directory), then `git checkout -B claude/dreamy-keller-22jfw9 && git add -A && git commit -m "restore"`.
+**Push fallback:** if `git push` is refused (403), try the GitHub MCP `push_files` (owner `abhijyotiba`, repo `linkedin-test`); if that is refused too, republish the "LinkedIn Studio" artifact with the changed files added to `files` (content JSON + PDF, data CSV/JSONL, config) so the next run can restore them. Say in the summary that GitHub still needs the Claude GitHub App installed on abhijyotiba/linkedin-test.
+**Email fallback:** if the Gmail `send_message` tool is not available, put the full kit in your final message.
 
 ## 1. EVENING run — build tomorrow's kit (Agents 1, 2, 3, 4, 5)
 
