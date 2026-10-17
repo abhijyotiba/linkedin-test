@@ -1,0 +1,88 @@
+{
+ "generated": "2026-10-17T10:04:47+00:00",
+ "timezone": "Asia/Kolkata",
+ "name": "productlabs.us",
+ "niche": "AI automation and agentic AI for real businesses: what works, what breaks, what it costs",
+ "weekly_mix": {
+  "mon": "story",
+  "tue": "carousel",
+  "wed": "contrarian",
+  "thu": "build_in_public",
+  "fri": "debate"
+ },
+ "proposed_mix": {
+  "mon": "story",
+  "tue": "carousel",
+  "wed": "contrarian",
+  "thu": "build_in_public",
+  "fri": "debate"
+ },
+ "linkedin_connected": false,
+ "token_expires": null,
+ "kits": [
+  {
+   "date": "2026-10-23",
+   "day_type": "debate",
+   "hook": "Klarna replaced 700 agents. Then rehired.",
+   "chars": 1050,
+   "carousel": "Automate the ticket, not the team",
+   "slides": 5,
+   "pdf_url": "https://raw.githubusercontent.com/abhijyotiba/linkedin-test/claude/dreamy-keller-22jfw9/content/2026-10-23.pdf",
+   "winner": null,
+   "scores": null,
+   "corrections": null,
+   "lint_ok": true,
+   "posted": null,
+   "metrics": null
+  },
+  {
+   "date": "2026-10-19",
+   "day_type": "story",
+   "hook": "Alert fired. Plug pulled 150 minutes later.",
+   "chars": 1295,
+   "carousel": null,
+   "slides": 0,
+   "pdf_url": null,
+   "winner": "contrarian",
+   "scores": [
+    {
+     "angle": "contrarian",
+     "total": 29
+    },
+    {
+     "angle": "data",
+     "total": 27
+    },
+    {
+     "angle": "operator",
+     "total": 27
+    },
+    {
+     "angle": "story",
+     "total": 22
+    }
+   ],
+   "corrections": 16,
+   "lint_ok": true,
+   "posted": null,
+   "metrics": null
+  }
+ ],
+ "metrics": [],
+ "verdicts": {},
+ "schedule": [
+  {
+   "name": "Evening kit",
+   "cron": "18:45 Sun-Thu"
+  },
+  {
+   "name": "Morning go-live",
+   "cron": "09:25 Mon-Fri"
+  },
+  {
+   "name": "Sunday analytics",
+   "cron": "09:52 Sun"
+  }
+ ],
+ "repo": "https://github.com/abhijyotiba/linkedin-test/tree/claude/dreamy-keller-22jfw9"
+}

@@ -11,6 +11,7 @@
   python studio.py run     content/2026-10-17.json   # -> render + lint + memory, the daily one-shot
   python studio.py memory                            # -> data/memory.md from all kits + metrics (anti-repetition)
   python studio.py doctor                            # -> preflight: deps, fonts, LinkedIn token/expiry, git push
+  python studio.py manifest                          # -> site/data.json, what the dashboard renders
 
 Deps: Pillow, PyYAML. Everything else is stdlib.
 """
@@ -378,6 +379,7 @@ def metrics(csv_path=None):
             if slot:
                 mix[slot] = d
     lines += ["", f"proposed weekly_mix: {mix}"]
+    metrics.mix = mix  # read by manifest()
     s = "\n".join(lines)
     print(s)
     return verdicts
@@ -552,6 +554,60 @@ def run(path):
     memory()
 
 
+# --------------------------------------------------------------- manifest ----
+def manifest():
+    """Everything the dashboard shows, as site/data.json: kits, posted status, metrics, verdicts, mix, connection state."""
+    _load_env()
+    posted = {}
+    pj = ROOT / "data" / "posted.jsonl"
+    if pj.exists():
+        for line in pj.read_text().splitlines():
+            if line.strip():
+                e = json.loads(line)
+                posted[e.get("date")] = e
+    rows = {}
+    mp = ROOT / "data" / "metrics.csv"
+    if mp.exists():
+        for r in csv.DictReader(mp.open()):
+            if (r.get("impressions") or "").strip():
+                rows[r["date"]] = {k: (v or "").strip() for k, v in r.items()}
+    kits = []
+    for p in sorted((ROOT / "content").glob("2*.json"), reverse=True):
+        try:
+            c = json.loads(p.read_text())
+        except json.JSONDecodeError:
+            continue
+        pipe = c.get("pipeline") or {}
+        kits.append({"date": c.get("date"), "day_type": c.get("day_type"), "hook": (c.get("post") or {}).get("hook", ""),
+                     "chars": len((c.get("post") or {}).get("text", "")), "carousel": (c.get("carousel") or {}).get("title"),
+                     "slides": len((c.get("carousel") or {}).get("slides", [])), "pdf_url": c.get("pdf_url"),
+                     "winner": pipe.get("winner"), "scores": pipe.get("scores"), "corrections": pipe.get("corrections"),
+                     "lint_ok": not lint_quiet(p), "posted": posted.get(c.get("date")), "metrics": rows.get(c.get("date"))})
+    import io, contextlib
+    cfg = _cfg()
+    verdicts, mix = {}, cfg.get("weekly_mix", {})
+    if rows:
+        with contextlib.redirect_stdout(io.StringIO()):
+            verdicts = metrics()
+        mix = getattr(metrics, "mix", mix)
+    out = {"generated": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "timezone": cfg.get("timezone"),
+           "name": cfg.get("name"), "niche": cfg.get("niche"), "weekly_mix": cfg.get("weekly_mix"), "proposed_mix": mix,
+           "linkedin_connected": bool(os.environ.get("LINKEDIN_ACCESS_TOKEN") and os.environ.get("LINKEDIN_PERSON_URN")),
+           "token_expires": os.environ.get("LINKEDIN_TOKEN_EXPIRES"), "kits": kits, "metrics": sorted(rows.values(), key=lambda r: r["date"], reverse=True),
+           "verdicts": verdicts, "schedule": [{"name": "Evening kit", "cron": "18:45 Sun-Thu"}, {"name": "Morning go-live", "cron": "09:25 Mon-Fri"}, {"name": "Sunday analytics", "cron": "09:52 Sun"}],
+           "repo": "https://github.com/abhijyotiba/linkedin-test/tree/claude/dreamy-keller-22jfw9"}
+    dest = ROOT / "site" / "data.json"
+    dest.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n")
+    print(dest)
+    return out
+
+
+def lint_quiet(path):
+    import io, contextlib
+    with contextlib.redirect_stdout(io.StringIO()):
+        return lint(path)
+
+
 if __name__ == "__main__":
     cmd, *rest = sys.argv[1:] or ["help"]
     flags = {a for a in rest if a.startswith("--")}
@@ -560,7 +616,7 @@ if __name__ == "__main__":
     cmds = {"render": lambda: render(args[0]), "publish": lambda: publish(args[0], dry="--dry" in flags),
             "comment": lambda: comment(args[0], args[1]), "brief": lambda: brief(args[0]),
             "metrics": lambda: metrics(*args[:1]), "auth": auth, "lint": lambda: sys.exit(1 if lint(args[0]) else 0),
-            "memory": memory, "doctor": lambda: sys.exit(0 if doctor() else 1), "run": lambda: run(args[0])}
+            "memory": memory, "doctor": lambda: sys.exit(0 if doctor() else 1), "run": lambda: run(args[0]), "manifest": manifest}
     if cmd not in cmds:
         print(__doc__)
         sys.exit(0 if cmd == "help" else 2)
