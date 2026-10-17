@@ -29,8 +29,9 @@ If `content/<date>.json` already exists with `post.text`, skip to step 3.
 
 1. **Run the kit pipeline** (`.claude/workflows/linkedin-kit.js`, saved workflow `linkedin-kit`):
    ```
-   Workflow({ name: "linkedin-kit", args: { repo: "/home/user/linkedin-test", date: "<date>", day_type: "<day_type>" } })
+   Workflow({ scriptPath: "/home/user/linkedin-test/.claude/workflows/linkedin-kit.js", args: { repo: "/home/user/linkedin-test", date: "<date>", day_type: "<day_type>" } })
    ```
+   (`name: "linkedin-kit"` also works in sessions that started after the file existed.)
    It runs 4 researchers (niche news, LinkedIn platform, India+US market, target creators), 4 ghostwriters on different angles, 3 judges per candidate (hook/dwell, credibility, audience fit), 2 fact-checkers that attack every number and claim in the winner with a correction pass, then the Engagement Engine (10 creator comments) and Network Builder (10 connection requests, 5 DMs, 5 idea hooks). It writes `content/<date>.json`, renders the carousel PDF, runs `python studio.py run` (render + lint + memory) and returns the lint result and the judge scores.
    If the Workflow tool is unavailable, do the same work yourself with the Agent tool (4 drafts, score them, pick one, fact-check, assemble) and write the JSON in the schema below, then `python studio.py run content/<date>.json`.
 2. **Gate.** `python studio.py lint content/<date>.json` must print `lint ok`. Fix violations by hand if the pipeline left any. Then `python studio.py memory` (rebuilds `data/memory.md`).

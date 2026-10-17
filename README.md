@@ -16,7 +16,23 @@ EVENING 18:45 IST (Sun–Thu)   MORNING 09:25 IST (Mon–Fri)      SUNDAY 10:00 
 └─────────────────────────┘
 ```
 
-Every run is a Claude Code scheduled task that follows `agents/PLAYBOOK.md`. The repo is the database: one JSON + PDF per day in `content/`, post URNs in `data/posted.jsonl`, your weekly numbers in `data/metrics.csv`.
+Every run is a Claude Code scheduled task that follows `agents/PLAYBOOK.md`. The repo is the database: one JSON + PDF per day in `content/`, post URNs in `data/posted.jsonl`, your weekly numbers in `data/metrics.csv`, and `data/memory.md` (auto-built) so the writers never repeat a hook and build on what performed.
+
+## How a post gets made (`.claude/workflows/linkedin-kit.js`)
+
+The evening run is not one prompt. It is a 20+ agent pipeline, versioned in this repo:
+
+| Stage | Agents | What happens |
+|---|---|---|
+| Research | 4 in parallel | niche news, LinkedIn platform changes, India+US market, what each target creator is posting now. Every fact carries a source URL. |
+| Draft | 4 in parallel | one post per angle: story-first, data-led, contrarian, operator checklist. Same structure rules, same intel, different bets. |
+| Judge | 3 per candidate | hook/dwell, credibility/specificity, audience fit. Scores summed, winner picked, scores stored in the kit JSON. |
+| Verify | 2 refuters + 1 rewrite | every number and company claim in the winner is attacked against the sources; unsupported ones get corrected or removed. |
+| Assemble | 2 + 1 | 10 creator comments keyed to what those creators are posting this week; 10 connection requests, 5 DMs, 5 idea hooks; then write, render, lint. |
+
+Deterministic gates run on every kit (`python studio.py lint`): hook ≤ 7 words and not a question, 600 to 1300 characters, no em-dashes, no external links (reach penalty), ≤ 3 hashtags, no banned phrases, exactly 10/10/5/5 items, every intel line sourced, carousel limits. CI runs the gates on every push. `python studio.py doctor` preflights dependencies, fonts, the LinkedIn token and its expiry, and push access before every run. The LinkedIn client retries on 429/5xx and tells you plainly when the token has expired.
+
+Analytics loop: reply to any kit or weekly email with your numbers in any format. The Sunday run reads the reply, files it into `data/metrics.csv`, applies the kill/double rules and rewrites next week's mix.
 
 ## Your daily routine (60 min)
 
