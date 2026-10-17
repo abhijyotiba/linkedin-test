@@ -35,7 +35,7 @@ const CANDIDATE = {
     self_comments: { type: 'array', items: { type: 'string' } },
     carousel: CAROUSEL,
   },
-  required: ['angle', 'hook', 'text', 'self_comments'],
+  required: day_type === 'carousel' ? ['angle', 'hook', 'text', 'self_comments', 'carousel'] : ['angle', 'hook', 'text', 'self_comments'],
 }
 const SCORE = {
   type: 'object',
@@ -57,7 +57,7 @@ const NETWORK = {
   },
   required: ['connection_requests', 'dms', 'ideas_bank'],
 }
-const RESULT = { type: 'object', properties: { path: { type: 'string' }, lint_ok: { type: 'boolean' }, lint_output: { type: 'string' }, pdf: { type: 'string' } }, required: ['path', 'lint_ok', 'lint_output'] }
+const RESULT = { type: 'object', properties: { path: { type: 'string' }, lint_ok: { type: 'boolean' }, lint_output: { type: 'string' }, pdf: { type: 'string' }, changes: { type: 'array', items: { type: 'string' } } }, required: ['path', 'lint_ok', 'lint_output', 'changes'] }
 
 // -------------------------------------------------------------- research ----
 phase('Research')
@@ -74,6 +74,7 @@ const bullets = intel.flatMap(i => i.bullets).filter(b => b.source && b.source.s
 const questions = intel.flatMap(i => i.questions)
 const hookPatterns = intel.flatMap(i => i.hooks)
 log(`research: ${bullets.length} sourced facts, ${questions.length} questions, ${hookPatterns.length} hook patterns`)
+if (bullets.length < 3) throw new Error(`research produced ${bullets.length} sourced facts (need 3); not drafting on thin air`)
 const INTEL_TEXT = JSON.stringify({ bullets, questions, hooks: hookPatterns }, null, 1)
 
 // ----------------------------------------------------------------- draft ----
@@ -97,7 +98,7 @@ const draft = (a) => agent(`${CTX}\n\nYou are the Ghostwriter. Angle: ${a.brief}
 
 // ----------------------------------------------------------------- judge ----
 const LENSES = [
-  { key: 'hook-dwell', ask: 'Would a scrolling ops leader stop at line 1 and keep reading past line 3? Score hook (0-10) and dwell (0-10) on structure and rhythm. Set specificity and fit to 0.' },
+  { key: 'hook-dwell', ask: 'Would a scrolling ops leader stop at line 1 and keep reading past line 3? Score hook (0-5) and dwell (0-5) on structure and rhythm. Set specificity and fit to 0.' },
   { key: 'credibility', ask: 'Is every claim concrete, sourced in the intel or config, and free of invented clients or numbers? Is the voice an operator, not a marketer? Score specificity (0-10). Set hook, dwell and fit to 0.' },
   { key: 'audience-action', ask: 'Does it fit founders and ops/CX leaders in India and the US, match the persona\'s niche so the ranking model trusts the author, and end with something people will actually comment or save? Score fit (0-10). Set hook, dwell and specificity to 0.' },
 ]
@@ -109,6 +110,7 @@ const judged = await pipeline(ANGLES,
       agent(`${CTX}\n\nYou are a judge (${l.key} lens). ${l.ask} total = the sum of the scores you set. notes: two sentences, the single biggest weakness.\n\nIntel for reference:\n${INTEL_TEXT}\n\nCandidate (angle ${cand.angle}):\n${JSON.stringify(cand, null, 1)}`,
         { label: `judge:${a.key}:${l.key}`, phase: 'Judge', schema: SCORE })
     ))).filter(Boolean)
+    if (votes.length < LENSES.length) { log(`judge: ${a.key} dropped, only ${votes.length}/${LENSES.length} judges answered`); return null }
     const total = votes.reduce((s, v) => s + (v.total || 0), 0)
     log(`judge: ${a.key} scored ${total} (${votes.map(v => v.notes.split('.')[0]).join(' | ')})`)
     return { cand, total, notes: votes.map(v => v.notes) }
@@ -135,14 +137,29 @@ if (bad.length) {
     { label: 'rewrite', phase: 'Verify', schema: CANDIDATE })
   if (fixed) winner = fixed
 }
+const slides = winner.carousel && winner.carousel.slides ? winner.carousel.slides.length : 0
+if (day_type === 'carousel' && !(slides >= 5 && slides <= 8)) throw new Error(`carousel day but the winner has ${slides} slides (need 5-8)`)
+if (slides && !(slides >= 5 && slides <= 8)) { log(`dropping a ${slides}-slide carousel (need 5-8)`); delete winner.carousel }
+if (!winner.self_comments || winner.self_comments.length < 2) throw new Error('winner has fewer than 2 self_comments')
 
 // -------------------------------------------------------------- assemble ----
 phase('Assemble')
+// one retry when an assembler comes back short; a short list would only push the lint fixer to invent entries
+const short = (r, needs) => !r || needs.some(([k, n]) => !Array.isArray(r[k]) || r[k].length < n)
+const assemble = async (label, prompt, schema, needs) => {
+  let r = await agent(prompt, { label, phase: 'Assemble', schema })
+  if (short(r, needs)) {
+    log(`${label}: short, retrying once`)
+    r = await agent(`${prompt}\n\nYour previous attempt returned too few items. Return exactly the counts asked for.`, { label: `${label}:retry`, phase: 'Assemble', schema })
+  }
+  if (short(r, needs)) throw new Error(`${label} returned too few items: ${needs.map(([k, n]) => `${k} ${(r && r[k] || []).length}/${n}`).join(', ')}`)
+  return r
+}
 const [eng, net] = await parallel([
-  () => agent(`${CTX}\n\nYou are the Engagement Engine. Write exactly 10 comments, one per creator in config.target_creators, to be posted on their newest post 15 minutes before our post goes live. Each: 2 to 4 lines, adds an insight, a number from the intel, or a respectful counterpoint tied to that creator's current theme (see the creators bullets in the intel). Never open with praise. End with a question when natural.\n\nIntel:\n${INTEL_TEXT}\n\nOur post today (for coherence):\n${winner.text}`,
-    { label: 'engagement', phase: 'Assemble', schema: ENGAGEMENT }),
-  () => agent(`${CTX}\n\nYou are the Network Builder. Return exactly 10 connection_requests (5 hiring managers or founders, 5 peers; describe who as "title @ company type", why they matter, and a message of at most 300 characters on the template "Hey [Name], saw your post on [Topic]. The point about [Specific] hit me. Building in the same space, would love to connect." with [Specific] personalised each time), exactly 5 dms for people who engage with today's post (pure value, a checklist or number, zero pitch), and exactly 5 ideas_bank hooks for future posts (at most 7 words each, contrarian or story-based, none already in memory.md).\n\nIntel:\n${INTEL_TEXT}\n\nOur post today:\n${winner.text}`,
-    { label: 'network', phase: 'Assemble', schema: NETWORK }),
+  () => assemble('engagement', `${CTX}\n\nYou are the Engagement Engine. Write exactly 10 comments, one per creator in config.target_creators, to be posted on their newest post 15 minutes before our post goes live. Each: 2 to 4 lines, adds an insight, a number from the intel, or a respectful counterpoint tied to that creator's current theme (see the creators bullets in the intel). Never open with praise. End with a question when natural.\n\nIntel:\n${INTEL_TEXT}\n\nOur post today (for coherence):\n${winner.text}`,
+    ENGAGEMENT, [['engagement_comments', 10]]),
+  () => assemble('network', `${CTX}\n\nYou are the Network Builder. Return exactly 10 connection_requests (5 hiring managers or founders, 5 peers; describe who as "title @ company type", why they matter, and a message of at most 300 characters on the template "Hey [Name], saw your post on [Topic]. The point about [Specific] hit me. Building in the same space, would love to connect." with [Specific] personalised each time), exactly 5 dms for people who engage with today's post (pure value, a checklist or number, zero pitch), and exactly 5 ideas_bank hooks for future posts (at most 7 words each, contrarian or story-based, none already in memory.md).\n\nIntel:\n${INTEL_TEXT}\n\nOur post today:\n${winner.text}`,
+    NETWORK, [['connection_requests', 10], ['dms', 5], ['ideas_bank', 5]]),
 ])
 if (!eng || !net) throw new Error('assemble agents failed')
 
@@ -159,8 +176,8 @@ const kit = {
   pipeline: { winner: winner.angle, scores: ranked.map(r => ({ angle: r.cand.angle, total: r.total })), corrections: bad.length },
 }
 
-const result = await agent(`Write this JSON exactly (pretty-printed, UTF-8, ensure_ascii off) to ${repo}/content/${date}.json, then run \`cd ${repo} && python studio.py run content/${date}.json\`. If lint prints violations, fix the JSON minimally (keep meaning and structure) and re-run, up to 3 attempts. Return path, lint_ok, the final lint output, and the PDF path if one was rendered.\n\n${JSON.stringify(kit, null, 1)}`,
+const result = await agent(`Write this JSON exactly (pretty-printed, UTF-8, ensure_ascii off) to ${repo}/content/${date}.json, then run \`cd ${repo} && python studio.py run content/${date}.json\`. If lint prints violations, you may fix ONLY formatting: whitespace, line breaks, syncing post.hook with the first line of post.text, trimming over-length wording of your own, removing a stray link or hashtag. Never add, remove or change a number, name, claim, quote or source URL, and never invent list entries; the post has been fact-checked. If a violation needs any of that, stop and return lint_ok=false with the output. Up to 3 attempts. Return path, lint_ok, the final lint output, the PDF path if one was rendered, and changes: one line per edit you made (empty if none).\n\n${JSON.stringify(kit, null, 1)}`,
   { label: 'write+lint', phase: 'Assemble', schema: RESULT })
 if (!result) throw new Error('write+lint agent failed')
-log(`kit ${result.lint_ok ? 'passed' : 'FAILED'} lint: ${result.path}`)
+log(`kit ${result.lint_ok ? 'passed' : 'FAILED'} lint: ${result.path}${result.changes.length ? ' | edits: ' + result.changes.join('; ') : ''}`)
 return { ...result, winner: winner.angle, hook: winner.hook, scores: kit.pipeline.scores, corrections: bad.length }

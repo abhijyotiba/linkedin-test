@@ -1,4 +1,4 @@
-# ---- LinkedIn Studio config (edit this, nothing else, to change voice/niche/schedule) ----
+# ---- LinkedIn Studio config: voice, niche, audience, creators, brand. The schedule lives in the Claude Code scheduled tasks. ----
 name: "productlabs.us"                         # footer on every carousel slide (your name or handle)
 person: "Dev — operator at Product Labs (Cupertino, CA) building AI automation; ships TixA, an agentic support AI"
 niche: "AI automation and agentic AI for real businesses: what works, what breaks, what it costs"
@@ -11,8 +11,8 @@ proof_points:
 stories:                                        # real anecdotes the Ghostwriter may use (add yours; one line each)
   - "Managed-support consultancies lose their margin on L1 ticket volume; an AI that clears L1 turns the retainer profitable again"
   - "Home-fixture brands honouring lifetime warranties across 5–17 sales channels drown in proof-of-purchase tickets"
-timezone: Asia/Kolkata                          # routine + scheduled runs use this
-routine: {engage: "09:00", post: "09:30", network: "19:00"}
+timezone: Asia/Kolkata                          # dates in the playbook are computed in this zone
+pdf_base_url: https://raw.githubusercontent.com/abhijyotiba/linkedin-test/claude/dreamy-keller-22jfw9/content   # where the kit PDFs are linked from (update after merging to main)
 brief_to: [dev@productlabs.us]                  # who gets the daily kit email
 weekly_mix: {mon: story, tue: carousel, wed: contrarian, thu: build_in_public, fri: debate}
 target_creators:                                # Engagement Engine comments on these (3 lines, add insight)

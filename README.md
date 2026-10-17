@@ -30,7 +30,7 @@ The evening run is not one prompt. It is a 20+ agent pipeline, versioned in this
 | Verify | 2 refuters + 1 rewrite | every number and company claim in the winner is attacked against the sources; unsupported ones get corrected or removed. |
 | Assemble | 2 + 1 | 10 creator comments keyed to what those creators are posting this week; 10 connection requests, 5 DMs, 5 idea hooks; then write, render, lint. |
 
-Deterministic gates run on every kit (`python studio.py lint`): hook ≤ 7 words and not a question, 600 to 1300 characters, no em-dashes, no external links (reach penalty), ≤ 3 hashtags, no banned phrases, exactly 10/10/5/5 items, every intel line sourced, carousel limits. CI runs the gates on every push. `python studio.py doctor` preflights dependencies, fonts, the LinkedIn token and its expiry, and push access before every run. The LinkedIn client retries on 429/5xx and tells you plainly when the token has expired.
+Deterministic gates run on every kit (`python studio.py lint`): hook ≤ 7 words and not a question, 600 to 1300 characters, no em-dashes, no external links (reach penalty), ≤ 3 hashtags, no banned phrases, at least 10 creator comments, 10 connection requests, 5 DMs, 5 idea hooks and 3 sourced intel lines, carousel limits. CI runs the gates on every push. `python studio.py doctor` preflights dependencies, fonts, the LinkedIn token and its expiry, and push access before every run. The LinkedIn client retries on 429/5xx and tells you plainly when the token has expired.
 
 Analytics loop: reply to any kit or weekly email with your numbers in any format. The Sunday run reads the reply, files it into `data/metrics.csv`, applies the kill/double rules and rewrites next week's mix.
 
@@ -58,9 +58,9 @@ LinkedIn's official API lets an app post to **your own profile** with no partner
    git clone <this repo> && cd linkedin-test && pip install -r requirements.txt
    printf 'LINKEDIN_CLIENT_ID=...\nLINKEDIN_CLIENT_SECRET=...\n' > .env
    python studio.py auth          # browser opens, approve, .env now has the token + your person URN
-   python studio.py publish content/<date>.json --dry   # sanity check, nothing is posted
+   python studio.py publish content/<date>.json --dry   # prints the request; makes no network calls
    ```
-5. Put `LINKEDIN_ACCESS_TOKEN` and `LINKEDIN_PERSON_URN` (from `.env`) into the Claude Code cloud environment: environment menu → Edit → **Network secrets / environment variables**. Also add `api.linkedin.com` and `www.linkedin.com` under **Allowed domains** (keep "Allow package managers" ticked).
+5. Put `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_PERSON_URN` and `LINKEDIN_TOKEN_EXPIRES` (from `.env`) into the Claude Code cloud environment: environment menu → Edit → **Network secrets / environment variables**. Also add `api.linkedin.com` and `www.linkedin.com` under **Allowed domains** (keep "Allow package managers" ticked).
 6. Tokens last 60 days. `python studio.py auth` again before `LINKEDIN_TOKEN_EXPIRES` in `.env` and update the secret.
 
 Optional: drop a square `assets/face.png` (it is git-ignored) and the cover + CTA slides get your face. Posts with a face get noticeably more reach.
@@ -78,4 +78,4 @@ python test_studio.py                              # self-check
 
 ## Change the voice, niche, schedule
 
-Edit `config.yaml` (persona, audience, proof points, real stories, target creators, brand colours, banned phrases, timezone). The playbook reads it on every run. To move the schedule, edit the scheduled tasks in Claude Code (they are named `LinkedIn Studio · evening/morning/sunday`).
+Edit `config.yaml` (persona, audience, proof points, real stories, target creators, brand colours, banned phrases, timezone). The playbook reads it on every run. To move the schedule, edit the scheduled tasks in Claude Code (they are named `LinkedIn Studio · evening/morning/sunday`). They fire into the session that holds the Gmail and GitHub connectors, which is why the kit emails can be sent at all.

@@ -28,9 +28,9 @@ def _load_env():
     p = ROOT / ".env"
     if p.exists():
         for line in p.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
+            if "=" in line and not line.lstrip().startswith("#"):
                 k, v = line.split("=", 1)
-                os.environ.setdefault(k.strip(), v.strip())
+                os.environ.setdefault(k.strip().removeprefix("export ").strip(), v.strip().strip("'\""))
 
 
 def _cfg():
@@ -129,7 +129,11 @@ def render(path):
     for l in lines:
         d.text((M, y), l, font=f, fill=fg)
         y += f.size * 1.2
-    d.text((M, y + 40), car.get("subtitle", "Swipe →"), font=_font(40, False), fill=accent)
+    f2, sub = _fit(car.get("subtitle", "Swipe →"), W - 2 * M, 160, 40, bold=False, min_size=28)
+    y += 40
+    for l in sub:
+        d.text((M, y), l, font=f2, fill=accent)
+        y += f2.size * 1.2
     _face(img, 260)
     footer(d, 1, n)
     pages.append(img)
@@ -173,7 +177,8 @@ LTF_SPECIAL = r"\()[]{}<>@#*_~|"
 
 def ltf_escape(text):
     """Posts API 'commentary' is Little Text Format: these chars must be backslash-escaped."""
-    return "".join("\\" + ch if ch in LTF_SPECIAL else ch for ch in text)
+    s = "".join("\\" + ch if ch in LTF_SPECIAL else ch for ch in text)
+    return re.sub(r"\\#(\w+)", r"{hashtag|\\#|\1}", s)
 
 
 def _headers(extra=None):
@@ -193,7 +198,7 @@ def _call(method, url, body=None, headers=None, raw=None, tries=4):
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 txt = r.read().decode() or "{}"
-                return (json.loads(txt) if txt.strip().startswith("{") else txt), dict(r.headers)
+                return (json.loads(txt) if txt.strip().startswith("{") else txt), r.headers
         except urllib.error.HTTPError as e:
             msg = e.read().decode()[:2000]
             if e.code == 401:
@@ -208,27 +213,42 @@ def _call(method, url, body=None, headers=None, raw=None, tries=4):
 
 
 def publish(path, dry=False):
+    """Post the kit (text + carousel PDF). Idempotent per date via data/posted.jsonl. --dry makes no network calls."""
     _load_env()
     c = json.loads(Path(path).read_text())
-    author = os.environ["LINKEDIN_PERSON_URN"]
+    log = ROOT / "data" / "posted.jsonl"
+    if log.exists():
+        for line in log.read_text().splitlines():
+            e = json.loads(line) if line.strip() else {}
+            if e.get("date") == c.get("date") and e.get("urn"):
+                sys.exit(f"already posted {c.get('date')}: {e['urn']}")
+    author = os.environ.get("LINKEDIN_PERSON_URN", "urn:li:person:DRY" if dry else None) or os.environ["LINKEDIN_PERSON_URN"]
     body = {"author": author, "commentary": ltf_escape(c["post"]["text"]), "visibility": "PUBLIC",
             "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []},
             "lifecycleState": "PUBLISHED", "isReshareDisabledByAuthor": False}
     pdf = Path(path).with_suffix(".pdf")
-    if c.get("carousel") and pdf.exists():
-        init, _ = _call("POST", f"{API}/rest/documents?action=initializeUpload",
-                        {"initializeUploadRequest": {"owner": author}})
-        v = init["value"]
-        _call("PUT", v["uploadUrl"], raw=pdf.read_bytes(),
-              headers={"Authorization": "Bearer " + os.environ["LINKEDIN_ACCESS_TOKEN"],
-                       "Content-Type": "application/pdf"})
-        body["content"] = {"media": {"title": c["carousel"]["title"][:100], "id": v["document"]}}
+    if c.get("carousel"):
+        if not pdf.exists():
+            sys.exit(f"{pdf} missing; run `python studio.py render {path}` first")
+        title = c["carousel"]["title"][:100]
+        if dry:
+            body["content"] = {"media": {"title": title, "id": f"urn:li:document:DRY (would upload {pdf.name})"}}
+        else:
+            init, _ = _call("POST", f"{API}/rest/documents?action=initializeUpload",
+                            {"initializeUploadRequest": {"owner": author}})
+            v = init["value"]
+            _call("PUT", v["uploadUrl"], raw=pdf.read_bytes(),
+                  headers={"Authorization": "Bearer " + os.environ["LINKEDIN_ACCESS_TOKEN"],
+                           "Content-Type": "application/pdf"})
+            body["content"] = {"media": {"title": title, "id": v["document"]}}
     if dry:
         print(json.dumps(body, indent=2))
         return None
-    _, hdrs = _call("POST", f"{API}/rest/posts", body)
-    urn = hdrs.get("x-restli-id") or hdrs.get("X-RestLi-Id")
-    with open(ROOT / "data" / "posted.jsonl", "a") as f:
+    _, hdrs = _call("POST", f"{API}/rest/posts", body, tries=1)  # never auto-retry a create: a lost response must not double-post
+    urn = hdrs.get("x-restli-id")
+    if not urn:
+        sys.exit("post created but no x-restli-id header; check LinkedIn before retrying")
+    with open(log, "a") as f:
         f.write(json.dumps({"date": c.get("date"), "urn": urn, "type": c.get("day_type"),
                             "ts": dt.datetime.now(dt.UTC).isoformat()}) + "\n")
     print(urn)
@@ -290,21 +310,23 @@ def brief(path):
     e = html.escape
     sec = lambda t: f"<h2 style='margin:28px 0 8px;font:600 18px system-ui'>{t}</h2>"
     pre = lambda t: f"<pre style='white-space:pre-wrap;font:15px/1.5 system-ui;background:#f6f8fa;padding:14px;border-radius:8px'>{e(t)}</pre>"
+    counter = iter(range(1, 20))
+    n = lambda: next(counter)
     out = [f"<h1 style='font:700 22px system-ui'>LinkedIn kit · {e(c['date'])} · {e(c.get('day_type', ''))}</h1>"]
-    out += [sec("1 · Post (copy, paste, publish)"), pre(c["post"]["text"])]
+    out += [sec(f"{n()} · Post (copy, paste, publish)"), pre(c["post"]["text"])]
     if c.get("carousel"):
         car = c["carousel"]
-        out += [sec("2 · Carousel (upload the PDF as a document with the post)"),
+        out += [sec(f"{n()} · Carousel (upload the PDF as a document with the post)"),
                 f"<p><b>{e(car['title'])}</b> · {e(car.get('subtitle', ''))} · {len(car['slides']) + 2} slides</p>",
                 "<ol>" + "".join(f"<li><b>{e(sl['title'])}</b> {e(sl.get('body', ''))}</li>" for sl in car["slides"]) + f"<li>CTA: {e(car.get('cta', ''))}</li></ol>",
-                f"<p>PDF: {e(c.get('pdf_url') or 'see attachment, or run  python studio.py render  on the attached JSON')}</p>"]
-    out += [sec("3 · Your 2 first-30-min comments (post one, keep one for a reply)")]
+                f"<p>PDF: {e(c.get('pdf_url') or 'not rendered yet: run  python studio.py run  on this kit')}</p>"]
+    out += [sec(f"{n()} · Your 2 first-30-min comments (post one, keep one for a reply)")]
     out += [pre(t) for t in c.get("self_comments", [])]
-    out += [sec("4 · Engagement Engine: 10 comments on big creators (before you post)")]
+    out += [sec(f"{n()} · Engagement Engine: 10 comments on big creators (before you post)")]
     out += ["<ol>" + "".join(f"<li><b>{e(x['creator'])}</b> · <i>{e(x.get('topic', ''))}</i>{pre(x['comment'])}</li>" for x in c.get("engagement_comments", [])) + "</ol>"]
-    out += [sec("5 · Network Builder: 10 connection requests (evening)")]
+    out += [sec(f"{n()} · Network Builder: 10 connection requests (evening)")]
     out += ["<ol>" + "".join(f"<li><b>{e(x['who'])}</b> · {e(x.get('why', ''))}{pre(x['message'])}</li>" for x in c.get("connection_requests", [])) + "</ol>"]
-    out += [sec("6 · 5 value DMs to people who engaged")]
+    out += [sec(f"{n()} · 5 value DMs to people who engaged")]
     out += ["<ol>" + "".join(f"<li><b>{e(x['to'])}</b>{pre(x['message'])}</li>" for x in c.get("dms", [])) + "</ol>"]
     if c.get("ideas_bank"):
         out += [sec("Idea bank (next posts)"), "<ul>" + "".join(f"<li>{e(i)}</li>" for i in c["ideas_bank"]) + "</ul>"]
@@ -322,11 +344,11 @@ KILL_BELOW, DOUBLE_ABOVE = 1000, 5000
 def metrics(csv_path=None):
     """Weekly report + kill/double rules from data/metrics.csv."""
     p = Path(csv_path or ROOT / "data" / "metrics.csv")
-    rows = [r for r in csv.DictReader(p.open()) if r.get("impressions")]
-    num = lambda r, k: float(r.get(k) or 0)
+    rows = sorted((r for r in csv.DictReader(p.open()) if (r.get("impressions") or "").strip()), key=lambda r: r.get("date", ""))
+    num = lambda r, k: float((r.get(k) or "0").replace(",", "").strip() or 0)
     by = {}
     for r in rows:
-        by.setdefault(r["post_type"], []).append(num(r, "impressions"))
+        by.setdefault((r.get("post_type") or "?").strip(), []).append(num(r, "impressions"))
     lines = [f"# Weekly LinkedIn report ({dt.date.today()})", "", "| post_type | posts | avg impressions | verdict |", "|---|---|---|---|"]
     verdicts = {}
     for t, v in sorted(by.items()):
@@ -341,6 +363,21 @@ def metrics(csv_path=None):
         acc = tot("connections_accepted") / tot("connections_sent") * 100 if tot("connections_sent") else 0
         lines += ["", f"Last 7 days: {len(last7)} posts · {tot('impressions'):,.0f} impressions · {tot('profile_views'):,.0f} profile views · "
                   f"{tot('connections_sent'):.0f} invites sent, {acc:.0f}% accepted · {tot('leads'):.0f} leads/DMs"]
+    # proposed weekly mix: a doubled type takes a killed type's day, else the lowest-average day; killed days get the best type
+    mix = dict(_cfg().get("weekly_mix", {}))
+    avg = {t: sum(v) / len(v) for t, v in by.items()}
+    killed = {t for t, v in verdicts.items() if v.startswith("KILL")}
+    doubled = [t for t, v in verdicts.items() if v.startswith("DOUBLE")]
+    best = max(avg, key=avg.get) if avg else None
+    for day, t in mix.items():
+        if t in killed and best and best not in killed:
+            mix[day] = best
+    for d in doubled:
+        if list(mix.values()).count(d) < 2:
+            slot = min((day for day, t in mix.items() if t != d), key=lambda day: avg.get(mix[day], 0), default=None)
+            if slot:
+                mix[slot] = d
+    lines += ["", f"proposed weekly_mix: {mix}"]
     s = "\n".join(lines)
     print(s)
     return verdicts
@@ -357,6 +394,14 @@ def lint(path):
     c = json.loads(Path(path).read_text())
     cfg = _cfg()
     v = []
+    for k in ("date", "day_type"):
+        if not c.get(k):
+            v.append(f"{k} is required")
+    for k, keys in {"engagement_comments": ("creator", "comment"), "connection_requests": ("who", "message"), "dms": ("to", "message")}.items():
+        for i, x in enumerate(c.get(k, [])):
+            for kk in keys:
+                if not isinstance(x, dict) or not x.get(kk):
+                    v.append(f"{k}[{i}] missing {kk}")
     post = c.get("post", {})
     text, hook = post.get("text", ""), post.get("hook", "")
     if not text or not hook:
@@ -373,7 +418,7 @@ def lint(path):
         v.append("no em-dashes in the post")
     if "http://" in text or "https://" in text:
         v.append("no external links in the post (reach penalty); put links in a comment")
-    if text.count("#") > 3:
+    if len(re.findall(r"(?<!\w)#[A-Za-z]\w*", text)) > 3:
         v.append("max 3 hashtags")
     low = text.lower()
     for b in cfg.get("banned_phrases", []):
@@ -395,11 +440,19 @@ def lint(path):
             v.append(f"connection_requests[{i}] message > 300 chars")
     car = c.get("carousel")
     if car:
+        if not car.get("title") or not car.get("slides"):
+            v.append("carousel needs title and slides")
+        if len(car.get("subtitle", "").split()) > 12:
+            v.append("carousel subtitle > 12 words")
+        if len(car.get("cta", "").split()) > 8:
+            v.append("carousel cta > 8 words")
         if not 5 <= len(car.get("slides", [])) <= 8:
             v.append(f"carousel has {len(car.get('slides', []))} slides (want 5-8)")
         if len(car.get("title", "").split()) > 10:
             v.append("carousel title > 10 words")
         for i, sl in enumerate(car.get("slides", [])):
+            if not sl.get("title"):
+                v.append(f"slide {i + 1} missing title")
             if len(sl.get("title", "").split()) > 8:
                 v.append(f"slide {i + 1} title > 8 words")
             if len(sl.get("body", "").split()) > 40:
@@ -422,12 +475,17 @@ def memory():
              "| date | type | hook | carousel | result |", "|---|---|---|---|---|"]
     topics = []
     for p in sorted((ROOT / "content").glob("2*.json")):
-        c = json.loads(p.read_text())
+        try:
+            c = json.loads(p.read_text())
+            hook = (c.get("post") or {}).get("hook", "")
+        except (json.JSONDecodeError, AttributeError) as e:
+            print(f"memory: skipping {p.name}: {e}", file=sys.stderr)
+            continue
         m = rows.get(c.get("date"), {})
         res = f"{m.get('impressions', '?')} imp / {m.get('comments', '?')} cmts" if m else "not posted yet"
         car = (c.get("carousel") or {}).get("title", "")
-        lines.append(f"| {c.get('date')} | {c.get('day_type')} | {c['post'].get('hook', '')} | {car} | {res} |")
-        topics += [c["post"].get("hook", "")] + [i for i in c.get("ideas_bank", [])]
+        lines.append(f"| {c.get('date')} | {c.get('day_type')} | {hook} | {car} | {res} |")
+        topics += [hook] + [i for i in c.get("ideas_bank", []) if isinstance(i, str)]
     lines += ["", "## Hooks and ideas already used or banked (do not repeat, do build on winners)", ""] + [f"- {t}" for t in topics if t]
     out = ROOT / "data" / "memory.md"
     out.write_text("\n".join(lines) + "\n")
@@ -436,7 +494,7 @@ def memory():
 
 
 def doctor():
-    """Preflight. Exit 1 on hard failures (deps, fonts); warnings for LinkedIn and git."""
+    """Preflight. FAIL (exit 1) only for deps and fonts; LinkedIn and git problems are WARN because a manual path exists."""
     _load_env()
     hard, warn = [], []
     try:
@@ -450,12 +508,22 @@ def doctor():
         warn.append("LinkedIn not connected: auto-publish off (README > Connect LinkedIn)")
     else:
         if exp:
-            days = (dt.date.fromisoformat(exp) - dt.date.today()).days
-            (hard if days < 0 else warn if days <= 7 else []).append(f"LinkedIn token expires in {days} days ({exp}); run `python studio.py auth`")
+            try:
+                days = (dt.date.fromisoformat(exp[:10]) - dt.date.today()).days
+                if days <= 7:
+                    warn.append(f"LinkedIn token expires in {days} days ({exp}); run `python studio.py auth` and update the secret")
+            except ValueError:
+                warn.append(f"LINKEDIN_TOKEN_EXPIRES={exp!r} is not a date")
+        else:
+            warn.append("LINKEDIN_TOKEN_EXPIRES not set: expiry unknown (copy it from .env)")
+        ver = os.environ.get("LINKEDIN_VERSION", "202608")
+        lo, hi = (dt.date.today() - dt.timedelta(days=365)).strftime("%Y%m"), dt.date.today().strftime("%Y%m")
+        if not lo <= ver <= hi:
+            warn.append(f"LINKEDIN_VERSION {ver} is outside the 12-month window LinkedIn keeps live ({lo}..{hi})")
         try:
             urllib.request.urlopen(urllib.request.Request(f"{API}/v2/userinfo", headers={"Authorization": "Bearer " + tok}), timeout=8)
         except urllib.error.HTTPError as e:
-            (hard if e.code == 401 else warn).append(f"LinkedIn API answered {e.code}")
+            warn.append(f"LinkedIn API answered {e.code}" + (": token expired, run `python studio.py auth`" if e.code == 401 else ""))
         except Exception as e:
             warn.append(f"api.linkedin.com unreachable from here ({type(e).__name__}); allow it under Network access")
     import subprocess
@@ -471,17 +539,31 @@ def doctor():
 
 
 def run(path):
-    """render (if carousel) + lint + memory. The one command the daily run calls."""
-    render(path)
-    v = lint(path)
-    memory()
-    if v:
+    """lint -> (set pdf_url, render) -> memory. The one command the daily run calls. Exit 1 before touching anything if lint fails."""
+    if lint(path):
         sys.exit(1)
+    c = json.loads(Path(path).read_text())
+    if c.get("carousel"):
+        base = _cfg().get("pdf_base_url", "").rstrip("/")
+        if base:
+            c["pdf_url"] = f"{base}/{Path(path).stem}.pdf"
+            Path(path).write_text(json.dumps(c, indent=2, ensure_ascii=False) + "\n")
+        render(path)
+    memory()
 
 
 if __name__ == "__main__":
-    cmd, *args = sys.argv[1:] or ["help"]
-    {"render": lambda: render(args[0]), "publish": lambda: publish(args[0], dry="--dry" in args),
-     "comment": lambda: comment(args[0], args[1]), "brief": lambda: brief(args[0]),
-     "metrics": lambda: metrics(*args), "auth": auth, "lint": lambda: sys.exit(1 if lint(args[0]) else 0),
-     "memory": memory, "doctor": lambda: sys.exit(0 if doctor() else 1), "run": lambda: run(args[0])}.get(cmd, lambda: print(__doc__))()
+    cmd, *rest = sys.argv[1:] or ["help"]
+    flags = {a for a in rest if a.startswith("--")}
+    args = [a for a in rest if not a.startswith("--")]
+    need = {"render": 1, "publish": 1, "comment": 2, "brief": 1, "lint": 1, "run": 1}
+    cmds = {"render": lambda: render(args[0]), "publish": lambda: publish(args[0], dry="--dry" in flags),
+            "comment": lambda: comment(args[0], args[1]), "brief": lambda: brief(args[0]),
+            "metrics": lambda: metrics(*args[:1]), "auth": auth, "lint": lambda: sys.exit(1 if lint(args[0]) else 0),
+            "memory": memory, "doctor": lambda: sys.exit(0 if doctor() else 1), "run": lambda: run(args[0])}
+    if cmd not in cmds:
+        print(__doc__)
+        sys.exit(0 if cmd == "help" else 2)
+    if len(args) < need.get(cmd, 0):
+        sys.exit(f"usage: studio.py {cmd} needs {need[cmd]} argument(s)")
+    cmds[cmd]()
