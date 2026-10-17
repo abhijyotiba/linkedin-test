@@ -34,7 +34,7 @@
     {% if chart %}
     {% set mx = chart|map(attribute=1)|max %}{% set mx = mx if mx > 0 else 1 %}
     <svg class="chart" viewBox="0 0 600 220" preserveAspectRatio="none">
-      {% for date, imp, typ in chart %}{% set i = loop.index0 %}{% set n = chart|length %}{% set bw = (560 / n) %}{% set h = (imp / mx) * 170 %}
+      {% for date, imp, typ in chart %}{% set i = loop.index0 %}{% set n = chart|length %}{% set bw = [560 / n, 72]|min %}{% set h = (imp / mx) * 170 %}
       <rect x="{{ 30 + i * bw + 2 }}" y="{{ 190 - h }}" width="{{ bw - 4 }}" height="{{ h }}" rx="3" fill="{{ 'var(--bad)' if imp < 1000 else 'var(--accent)' }}"><title>{{ date }} · {{ typ }} · {{ '{:,}'.format(imp) }}</title></rect>
       {% endfor %}
       <line x1="30" y1="190" x2="590" y2="190" stroke="var(--line)"/>
