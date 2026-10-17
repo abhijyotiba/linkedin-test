@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Flows</h1>
+<p class="muted">A flow is a pipeline the agents run on a schedule or when you press Run. Every prompt, count and schedule is editable. Duplicate a flow to experiment without touching the one that runs.</p>
+<div class="card"><table>
+  <tr><th>Flow</th><th>Kind</th><th>Schedule ({{ settings.profile.timezone }})</th><th>Next</th><th></th></tr>
+  {% for f in fires %}{% set sch = f.flow.data.schedule or {} %}
+  <tr><td><a href="/flows/{{ f.flow.slug }}">{{ f.flow.name }}</a><br><small>{{ f.flow.data.description }}</small></td><td>{{ f.flow.kind }}</td>
+      <td>{{ sch.time }} {{ sch.days|join(' ') }}{% if not f.flow.enabled %} <span class="pill">disabled</span>{% endif %}</td>
+      <td>{{ f.next.strftime('%a %d %b %H:%M') if f.next else '' }}</td>
+      <td><form class="inline" method="post" action="/flows/{{ f.flow.slug }}/run"><button class="secondary" type="submit">Run now</button></form></td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.id }} · LinkedIn Studio{% endblock %}
+{% block content %}
+<h1>Run {{ run.id }} · {{ flow.name if flow else run.flow_slug }} · <span id="status" class="pill {{ 'ok' if run.status == 'done' else 'bad' if run.status == 'failed' else 'warn' }}">{{ run.status }}</span></h1>
+<p class="muted">Started {{ run.started_at.strftime('%d %b %Y %H:%M') }} UTC · params {{ run.params }} · <span id="cost">${{ '%.3f'|format(run.cost_usd or 0) }}, {{ run.tokens_in }}/{{ run.tokens_out }} tokens</span>
+  {% if run.kit_date %} · kit <a id="kitlink" href="/kits/{{ run.kit_date }}">{{ run.kit_date }}</a>{% endif %}</p>
+{% if run.error %}<div class="banner"><b>Failed:</b> {{ run.error }}</div>{% endif %}
+<div class="card log" id="log">
+  {% for e in run.log %}<div><span class="t">{{ e.t[11:19] }}</span><span class="step">{{ e.step }}</span> {{ e.message }}{% if e.data %}<details><summary class="muted">details</summary><pre>{{ e.data|tojson_pretty }}</pre></details>{% endif %}</div>
+  {% else %}<div class="muted">Waiting to start…</div>{% endfor %}
+</div>
+{% if run.status in ('queued', 'running') %}
+<script>
+(async () => {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  while (true) {
+    await new Promise(r => setTimeout(r, 3000));
+    const r = await fetch('/api/runs/{{ run.id }}'); if (!r.ok) continue;
+    const d = await r.json();
+    document.getElementById('log').innerHTML = d.log.map(e => `<div><span class="t">${esc(e.t.slice(11,19))}</span><span class="step">${esc(e.step)}</span> ${esc(e.message)}${e.data ? `<details><summary class="muted">details</summary><pre>${esc(JSON.stringify(e.data, null, 2))}</pre></details>` : ''}</div>`).join('') || '<div class="muted">Waiting to start…</div>';
+    document.getElementById('cost').textContent = `$${(d.cost_usd || 0).toFixed(3)}, ${d.tokens_in}/${d.tokens_out} tokens`;
+    if (d.status === 'done' || d.status === 'failed') { location.reload(); break; }
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

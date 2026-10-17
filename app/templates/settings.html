@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Settings</h1>
+<p class="muted">Everything the agents know about you comes from this page. Secrets (API keys, passwords) live in the environment, never here.</p>
+
+<div class="card">
+  <h2>Environment</h2>
+  <table>
+    <tr><td>ANTHROPIC_API_KEY</td><td>{% if env.anthropic %}<span class="ok">set</span>{% else %}<span class="bad">missing: the flows cannot run</span>{% endif %}</td></tr>
+    <tr><td>LINKEDIN_CLIENT_ID / SECRET</td><td>{% if env.linkedin_app %}<span class="ok">set</span>{% else %}<span class="warn">missing: auto-publish off</span>{% endif %}</td></tr>
+    <tr><td>SMTP_HOST / SMTP_FROM</td><td>{% if env.smtp %}<span class="ok">set</span>{% else %}<span class="warn">missing: no emails, use the dashboard</span>{% endif %}</td></tr>
+    <tr><td>DASHBOARD_PASSWORD</td><td>{% if env.password %}<span class="ok">set</span>{% else %}<span class="bad">missing: the dashboard is open to anyone with the URL</span>{% endif %}</td></tr>
+  </table>
+  <h3>LinkedIn</h3>
+  {% if settings.linkedin.access_token %}
+    <p>Connected as <b>{{ settings.linkedin.name }}</b> ({{ settings.linkedin.person_urn }}). Token expires {{ (settings.linkedin.expires_at)|int|string }} (epoch) — reconnect every 60 days.</p>
+    <form method="post" action="/settings/linkedin/disconnect"><button class="danger" type="submit">Disconnect</button></form>
+  {% else %}
+    <p>Create an app at <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener">linkedin.com/developers/apps</a>, add the products <b>Share on LinkedIn</b> and <b>Sign In with LinkedIn using OpenID Connect</b>, add this redirect URL: <code>{{ redirect_uri }}</code>, put the Client ID and Secret in the environment, then:</p>
+    <a class="btn" href="/auth/linkedin">Connect LinkedIn</a>
+  {% endif %}
+</div>
+
+<form method="post" action="/settings">
+<div class="grid2">
+  <div class="card">
+    <h2>Profile</h2>
+    <label>Your name</label><input type="text" name="name" value="{{ settings.profile.name }}">
+    <label>Headline (as on your LinkedIn profile)</label><input type="text" name="headline" value="{{ settings.profile.headline }}">
+    <label>Niche: what you post about (one or two sentences)</label><textarea name="niche">{{ settings.profile.niche }}</textarea>
+    <label>Audience: who should read and act</label><textarea name="audience">{{ settings.profile.audience }}</textarea>
+    <label>Market / geography (e.g. "India first, US second")</label><input type="text" name="market" value="{{ settings.profile.market }}">
+    <label>What you offer (product, service, or "nothing, I am building an audience")</label><textarea name="offer">{{ settings.profile.offer }}</textarea>
+    <label>Timezone (schedule and dates)</label><select name="timezone">{% for tz in timezones %}<option value="{{ tz }}" {{ 'selected' if tz == settings.profile.timezone }}>{{ tz }}</option>{% endfor %}</select>
+  </div>
+  <div class="card">
+    <h2>Voice and facts</h2>
+    <label>Proof points: facts the writers may claim about you (one per line)</label><textarea name="proof_points">{{ settings.profile.proof_points|join('\n') }}</textarea>
+    <label>Real stories the writers may use (one per line)</label><textarea name="stories">{{ settings.profile.stories|join('\n') }}</textarea>
+    <label>Voice rules</label><textarea name="voice">{{ settings.profile.voice }}</textarea>
+    <label>Banned phrases (one per line)</label><textarea name="banned_phrases">{{ settings.profile.banned_phrases|join('\n') }}</textarea>
+    <label>Target creators to comment on, "Name: their topic" (one per line)</label><textarea name="target_creators">{% for c in settings.profile.target_creators %}{{ c.name }}: {{ c.topic }}
+{% endfor %}</textarea>
+  </div>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h2>Content plan</h2>
+    {% for d in weekdays %}<label>{{ d }}</label><select name="mix_{{ d }}">{% for t in day_types %}<option value="{{ t }}" {{ 'selected' if settings.content.weekly_mix[d] == t }}>{{ t }}</option>{% endfor %}</select>{% endfor %}
+    <div class="check"><input type="checkbox" name="require_approval" id="ra" {{ 'checked' if settings.content.require_approval }}><label for="ra" style="margin:0">Require my approval before the go-live run posts a kit</label></div>
+    <div class="check"><input type="checkbox" name="auto_apply_mix" id="am" {{ 'checked' if settings.content.auto_apply_mix }}><label for="am" style="margin:0">Let the weekly run rewrite the mix from the numbers</label></div>
+  </div>
+  <div class="card">
+    <h2>Model and delivery</h2>
+    <label>Claude model</label><select name="model">{% for m in models %}<option value="{{ m }}" {{ 'selected' if m == settings.llm.model }}>{{ m }}</option>{% endfor %}</select>
+    <label>Default effort (drafts use "high" by default; change it in the flow)</label><select name="effort">{% for e in ['low','medium','high','xhigh','max'] %}<option value="{{ e }}" {{ 'selected' if e == settings.llm.effort }}>{{ e }}</option>{% endfor %}</select>
+    <div class="check"><input type="checkbox" name="fallbacks" id="fb" {{ 'checked' if settings.llm.fallbacks }}><label for="fb" style="margin:0">Server-side fallback to another Claude model if a request is declined</label></div>
+    <label>Email the kits and reports to</label><input type="email" name="email_to" value="{{ settings.delivery.email_to }}" placeholder="you@example.com">
+    <h3>Carousel brand</h3>
+    <div class="row">
+      {% for k in ['bg','fg','accent','muted'] %}<div><label>{{ k }}</label><input type="text" name="brand_{{ k }}" value="{{ settings.brand[k] }}" style="width:110px"></div>{% endfor %}
+      <div><label>handle on slides</label><input type="text" name="brand_handle" value="{{ settings.brand.handle }}" style="width:200px"></div>
+    </div>
+  </div>
+</div>
+<button type="submit">Save settings</button>
+</form>
+{% endblock %}

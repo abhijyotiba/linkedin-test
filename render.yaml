@@ -1,0 +1,41 @@
+# Render Blueprint: one always-on web service with a 1 GB disk for the SQLite database.
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo. Then fill the sync:false secrets.
+services:
+  - type: web
+    name: linkedin-studio
+    runtime: python
+    plan: starter            # always-on, so the in-process scheduler fires on time (free instances sleep)
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    disk:
+      name: studio-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        value: sqlite:////var/data/studio.db   # or a Postgres URL; both work
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CRON_TOKEN
+        generateValue: true
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false

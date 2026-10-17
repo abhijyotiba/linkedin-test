@@ -1,84 +1,93 @@
 # LinkedIn Studio
 
-**Tracker dashboard:** https://claude.ai/artifact/3vAMBoZ7ajyLBnW1hXMyef (kits, judge scores, posted status, impressions, weekly mix, next runs; reads `site/data.json` from this repo live through your GitHub connection).
-
-An autonomous 6-agent LinkedIn growth system. Claude runs it on a schedule, writes the content, renders the carousel, emails you a daily kit, and publishes the post for you once LinkedIn is connected.
+A self-hosted LinkedIn growth system. It runs a multi-agent pipeline on a schedule, writes one post kit per weekday for *your* profile and niche, renders the carousel, publishes through LinkedIn's official API once you connect it, and grades post types from the numbers you enter. One Python web service, one SQLite file, your own Anthropic API key. No subscription, no Claude Code, no external scheduler.
 
 ```
-EVENING 18:45 IST (Sun–Thu)   MORNING 09:25 IST (Mon–Fri)      SUNDAY 10:00 IST
-┌─────────────────────────┐   ┌──────────────────────────┐    ┌──────────────────────┐
-│ 1 Content Intelligence  │   │ publish post (+PDF) via  │    │ 6 Analytics & Leads  │
-│ 2 Ghostwriter           │──▶│   LinkedIn API           │    │   data/metrics.csv   │
-│ 3 Design (carousel PDF) │   │ post 1st self-comment    │    │   kill <1k ×2        │
-│ 4 Network Builder       │   │ email "LIVE: reply now"  │    │   double >5k         │
-│ 5 Engagement Engine     │   │ (or "POST NOW" + PDF if  │    │   email report       │
-│ → content/<date>.json   │   │  LinkedIn not connected) │    └──────────────────────┘
-│ → content/<date>.pdf    │   └──────────────────────────┘
-│ → email the kit         │
-└─────────────────────────┘
+Settings (who you are, niche, audience, proof points, voice, creators, weekly mix)
+        │
+        ▼
+Daily kit flow ── 4 researchers (server-side web search) ─▶ 4 drafts (story / data / contrarian / operator)
+   18:45 Sun–Thu  ─▶ 3 judges per draft ─▶ 2 fact-checkers + correction pass ─▶ comments / connections / DMs / ideas
+                  ─▶ quality gates ─▶ kit saved (draft) ─▶ email
+        │
+        ▼
+You approve on the dashboard (or switch approval off)
+        │
+        ▼
+Go live flow ── LinkedIn Posts API (text + carousel PDF) ─▶ first self-comment ─▶ LIVE email
+   09:30 Mon–Fri   (or a POST NOW email with everything, until LinkedIn is connected)
+        │
+        ▼
+You enter impressions / reactions / comments per post
+        │
+        ▼
+Weekly flow ── kill types under 1,000 twice, double types over 5,000 ─▶ proposed mix ─▶ report
+   09:50 Sun
 ```
 
-Every run is a Claude Code scheduled task that follows `agents/PLAYBOOK.md`. The repo is the database: one JSON + PDF per day in `content/`, post URNs in `data/posted.jsonl`, your weekly numbers in `data/metrics.csv`, and `data/memory.md` (auto-built) so the writers never repeat a hook and build on what performed.
-
-## How a post gets made (`.claude/workflows/linkedin-kit.js`)
-
-The evening run is not one prompt. It is a 20+ agent pipeline, versioned in this repo:
-
-| Stage | Agents | What happens |
-|---|---|---|
-| Research | 4 in parallel | niche news, LinkedIn platform changes, India+US market, what each target creator is posting now. Every fact carries a source URL. |
-| Draft | 4 in parallel | one post per angle: story-first, data-led, contrarian, operator checklist. Same structure rules, same intel, different bets. |
-| Judge | 3 per candidate | hook/dwell, credibility/specificity, audience fit. Scores summed, winner picked, scores stored in the kit JSON. |
-| Verify | 2 refuters + 1 rewrite | every number and company claim in the winner is attacked against the sources; unsupported ones get corrected or removed. |
-| Assemble | 2 + 1 | 10 creator comments keyed to what those creators are posting this week; 10 connection requests, 5 DMs, 5 idea hooks; then write, render, lint. |
-
-Deterministic gates run on every kit (`python studio.py lint`): hook ≤ 7 words and not a question, 600 to 1300 characters, no em-dashes, no external links (reach penalty), ≤ 3 hashtags, no banned phrases, at least 10 creator comments, 10 connection requests, 5 DMs, 5 idea hooks and 3 sourced intel lines, carousel limits. CI runs the gates on every push. `python studio.py doctor` preflights dependencies, fonts, the LinkedIn token and its expiry, and push access before every run. The LinkedIn client retries on 429/5xx and tells you plainly when the token has expired.
-
-Analytics loop: reply to any kit or weekly email with your numbers in any format. The Sunday run reads the reply, files it into `data/metrics.csv`, applies the kill/double rules and rewrites next week's mix.
-
-## Your daily routine (60 min)
-
-| Time (IST) | Agent | You do |
-|---|---|---|
-| 09:00 | Engagement Engine | Paste the 10 creator comments from last night's kit (3 lines, add insight). |
-| 09:30 | Ghostwriter + Design | Post goes live automatically (or paste text + upload the PDF from the "POST NOW" email). Post self-comment #1. |
-| 09:35–10:00 | Engagement Engine | Reply to every comment with a question. Send the 5 value DMs. |
-| 19:00 | Network Builder | Send the 10 personalised connection requests from the kit. Unfollow inactive accounts on Fridays. |
-| Sunday | Analytics | Append last week's numbers to `data/metrics.csv`; read the Sunday report. |
-
-Weekly mix: Mon story · Tue carousel · Wed contrarian · Thu build-in-public · Fri debate (`config.yaml → weekly_mix`).
-
-## Connect LinkedIn (one time, 5 minutes) — turns on auto-publish
-
-LinkedIn's official API lets an app post to **your own profile** with no partner review (product "Share on LinkedIn"). Comments on other people's posts, connection requests and DMs are not available via API, and bots that do them get accounts restricted, so those stay human-clicked with AI-written text.
-
-1. https://www.linkedin.com/developers/apps → **Create app** (needs any LinkedIn Page you admin; create a free one if needed).
-2. App → **Products** → add **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect**.
-3. App → **Auth** → add redirect URL `http://localhost:8765/callback`. Copy Client ID and Client Secret.
-4. On your laptop:
-   ```bash
-   git clone <this repo> && cd linkedin-test && pip install -r requirements.txt
-   printf 'LINKEDIN_CLIENT_ID=...\nLINKEDIN_CLIENT_SECRET=...\n' > .env
-   python studio.py auth          # browser opens, approve, .env now has the token + your person URN
-   python studio.py publish content/<date>.json --dry   # prints the request; makes no network calls
-   ```
-5. Put `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_PERSON_URN` and `LINKEDIN_TOKEN_EXPIRES` (from `.env`) into the Claude Code cloud environment: environment menu → Edit → **Network secrets / environment variables**. Also add `api.linkedin.com` and `www.linkedin.com` under **Allowed domains** (keep "Allow package managers" ticked).
-6. Tokens last 60 days. `python studio.py auth` again before `LINKEDIN_TOKEN_EXPIRES` in `.env` and update the secret.
-
-Optional: drop a square `assets/face.png` (it is git-ignored) and the cover + CTA slides get your face. Posts with a face get noticeably more reach.
-
-## Run it by hand
+## Run it locally (2 minutes)
 
 ```bash
-python studio.py render  content/2026-10-20.json   # JSON -> 1080x1350 PDF carousel
-python studio.py brief   content/2026-10-20.json   # the HTML kit
-python studio.py publish content/2026-10-20.json   # post it (needs .env)
-python studio.py comment urn:li:share:123 "text"   # comment as you
-python studio.py metrics                           # weekly report
-python studio.py manifest                          # site/data.json, what the tracker dashboard shows
-python test_studio.py                              # self-check
+pip install -r requirements.txt
+cp .env.example .env            # put your ANTHROPIC_API_KEY and a DASHBOARD_PASSWORD in it
+set -a; source .env; set +a
+uvicorn app.main:app --reload
 ```
+Open http://localhost:8000, sign in, fill **Settings** (the agents know nothing until you do), then open **Flows → Daily kit → Run**. The run page streams the log: research, drafts with hooks, judge scores, corrections, gates. The kit appears under **Kits** with the post, both self-comments, the carousel PDF, 10 creator comments, 10 connection requests, 5 DMs and 5 idea hooks.
 
-## Change the voice, niche, schedule
+Try it with no API key and no cost: `FAKE_LLM=1` runs the whole pipeline with canned output. `python tests/test_app.py` does exactly that end to end.
 
-Edit `config.yaml` (persona, audience, proof points, real stories, target creators, brand colours, banned phrases, timezone). The playbook reads it on every run. To move the schedule, edit the scheduled tasks in Claude Code (they are named `LinkedIn Studio · evening/morning/sunday`). They fire into the session that holds the Gmail and GitHub connectors, which is why the kit emails can be sent at all.
+## Deploy on Render (10 minutes)
+
+1. Push this repo to GitHub. In Render: **New → Blueprint**, pick the repo. `render.yaml` creates one always-on web service (Starter) with a 1 GB disk for the database.
+2. Fill the secrets Render asks for: `DASHBOARD_PASSWORD`, `ANTHROPIC_API_KEY`. The rest are optional (below).
+3. Open the service URL, sign in, fill Settings, run the Daily kit flow once.
+
+The scheduler runs inside the web service, which is why the instance must not sleep (free instances do). If you prefer Render Cron Jobs or any other scheduler, set `SCHEDULER=0` and call `POST /api/run/daily_kit` (and `publish`, `weekly`) with `Authorization: Bearer $CRON_TOKEN`.
+
+Postgres instead of SQLite: set `DATABASE_URL` to the Postgres URL; the driver is included.
+
+| Variable | Needed for |
+|---|---|
+| `ANTHROPIC_API_KEY` | everything (billed per token; a daily kit costs roughly $1 to $3 on Claude Opus 5.5 with web search) |
+| `DASHBOARD_PASSWORD`, `SECRET_KEY` | the login wall |
+| `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | auto-publish. Create an app at linkedin.com/developers/apps, add the products **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect**, add `https://<your-service>/auth/linkedin/callback` as a redirect URL, then press **Connect LinkedIn** in Settings. Tokens last 60 days; reconnect when Settings says so. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | kit, LIVE and weekly emails (Gmail: smtp.gmail.com, 587, an app password). Without them everything is still on the dashboard. |
+| `CRON_TOKEN` | the `/api/run/<flow>` endpoint |
+| `SCHEDULER` | `0` disables the in-process scheduler |
+
+## What you control
+
+- **Settings**: name, headline, niche, audience, market, offer, proof points (the only facts the writers may claim as yours), real stories, voice rules, banned phrases, target creators, timezone, weekly mix, approval gate, model and effort, email, carousel colours and handle.
+- **Flows**: every prompt, angle, judge lens, refuter and count of the pipeline is editable in the UI (form fields for scalars, raw JSON for lists). Schedules are per flow. Duplicate a flow to experiment; disable one to pause it; **Run now** with a chosen date and day type.
+- **Kits**: edit the post and self-comments (gates re-run on save), approve, publish now, download the carousel PDF, mark as posted by hand, enter the numbers, delete.
+- **Runs**: live log per run with every step, judge notes, unsupported claims, edits made by the gate fixer, tokens and cost.
+
+## How the pipeline keeps quality
+
+- Four candidates on different angles compete; three judges with different lenses score each; the winner is the sum.
+- Two fact-checkers attack every number and company claim in the winner against the research; a correction pass applies their fixes before anything reaches you.
+- Deterministic gates reject weak hooks, wrong lengths, links, em-dashes, banned phrases, short lists and unsourced research. A formatting-only fixer may touch whitespace and length; it is forbidden from changing facts. Anything still failing is saved as a draft with the violations shown, never auto-published.
+- Memory: every past hook and banked idea is in the prompt, so posts never repeat and later posts build on what performed.
+- Publishing is idempotent (a kit is never posted twice) and the create call is never auto-retried.
+
+## Limits by design
+
+Comments on other people's posts, connection requests and DMs are not available through LinkedIn's API, and bots that do them get accounts restricted. The pipeline writes all of it; you paste. Post analytics for personal profiles are not exposed by the API either, so you enter impressions, reactions and comments per post (30 seconds a day) and the weekly flow does the rest.
+
+## Layout
+
+```
+app/main.py        routes, auth, run launcher, LinkedIn OAuth, scheduler startup
+app/flows.py       default flow definitions (prompts, angles, lenses) and the run engine
+app/llm.py         Claude client: structured JSON output, server-side web search, cost, offline fake
+app/kits.py        quality gates, brief HTML, memory text, weekly verdicts
+app/render.py      carousel PDF (1080x1350)
+app/linkedin.py    OAuth, Posts API, Documents API, comments
+app/mailer.py      SMTP
+app/scheduler.py   in-process scheduler with a 10-minute catch-up window
+app/db.py          SQLAlchemy models (settings, flows, runs, kits, metrics)
+app/templates/     dashboard, kits, kit, flows, flow, runs, run, settings, login
+tests/test_app.py  end-to-end check with the fake model
+render.yaml        Render blueprint
+```

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Kits</h1>
+<p class="muted">One per weekday. Draft → approve → the go-live run posts it (or you post it by hand). Enter the numbers afterwards so the weekly run can grade post types.</p>
+<div class="card"><div class="wrap"><table>
+  <tr><th>Date</th><th>Type</th><th>Hook</th><th>Angle</th><th>Status</th><th>Impressions</th><th>Comments</th></tr>
+  {% for k in kits %}{% set d = k.data %}
+  <tr><td><a href="/kits/{{ k.date }}">{{ k.date }}</a></td><td>{{ k.day_type }}</td><td>{{ d.post.hook if d.post else '' }}</td>
+      <td>{{ d.pipeline.winner if d.pipeline else 'hand-written' }}</td>
+      <td><span class="pill {{ 'ok' if k.status == 'posted' else 'warn' if k.status == 'approved' else '' }}">{{ k.status }}</span>{% if d.lint %} <span class="pill bad">lint {{ d.lint|length }}</span>{% endif %}</td>
+      <td>{{ metrics[k.date].impressions if k.date in metrics and metrics[k.date].impressions is not none else '' }}</td>
+      <td>{{ metrics[k.date].comments if k.date in metrics and metrics[k.date].comments is not none else '' }}</td></tr>
+  {% else %}<tr><td colspan="7" class="muted">No kits yet. <a href="/flows/daily_kit">Run the Daily kit flow</a>.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

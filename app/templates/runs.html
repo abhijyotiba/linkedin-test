@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Runs</h1>
+<div class="card"><div class="wrap"><table>
+  <tr><th>#</th><th>Flow</th><th>Status</th><th>Started (UTC)</th><th>Took</th><th>Tokens in/out</th><th>Cost</th><th>Kit</th><th>Result</th></tr>
+  {% for r in runs %}
+  <tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td>{{ r.flow_slug }}</td>
+      <td><span class="pill {{ 'ok' if r.status == 'done' else 'bad' if r.status == 'failed' else 'warn' }}">{{ r.status }}</span></td>
+      <td>{{ r.started_at.strftime('%d %b %H:%M') }}</td><td>{{ ((r.finished_at - r.started_at).seconds // 60) ~ ' min' if r.finished_at else '' }}</td>
+      <td>{{ r.tokens_in }}/{{ r.tokens_out }}</td><td>${{ '%.3f'|format(r.cost_usd or 0) }}</td>
+      <td>{% if r.kit_date %}<a href="/kits/{{ r.kit_date }}">{{ r.kit_date }}</a>{% endif %}</td>
+      <td>{{ r.error[:100] if r.error else (r.log[-1].message[:100] if r.log else '') }}</td></tr>
+  {% else %}<tr><td colspan="9" class="muted">Nothing has run yet.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

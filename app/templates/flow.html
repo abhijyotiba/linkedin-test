@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ flow.name }} · LinkedIn Studio{% endblock %}
+{% block content %}
+<h1>{{ flow.name }} <small class="muted">({{ flow.kind }} · {{ flow.slug }})</small></h1>
+<p class="muted">{{ data.description }}</p>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Run now</h2>
+    <form method="post" action="/flows/{{ flow.slug }}/run">
+      {% if flow.kind == 'kit' %}
+      <label>Post date (blank = next weekday)</label><input type="date" name="date">
+      <label>Day type (blank = from the weekly mix)</label><select name="day_type"><option value="">from weekly mix</option>{% for t in day_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
+      <div class="check"><input type="checkbox" name="overwrite" id="ow"><label for="ow" style="margin:0">Replace an existing kit for that date</label></div>
+      {% elif flow.kind == 'publish' %}
+      <label>Kit date (blank = today)</label><input type="date" name="date">
+      {% endif %}
+      <div style="margin-top:10px"><button type="submit">Run</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Copy or delete</h2>
+    <form method="post" action="/flows/{{ flow.slug }}/duplicate">
+      <label>New flow name</label><input type="text" name="new_slug" placeholder="daily_kit_experiment">
+      <div style="margin-top:8px"><button class="secondary" type="submit">Duplicate</button></div>
+    </form>
+    {% if flow.slug not in ('daily_kit', 'publish', 'weekly') %}
+    <form method="post" action="/flows/{{ flow.slug }}/delete" onsubmit="return confirm('Delete this flow?')" style="margin-top:12px"><button class="danger" type="submit">Delete flow</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<form method="post" action="/flows/{{ flow.slug }}">
+<div class="card">
+  <h2>Schedule</h2>
+  <label>Name</label><input type="text" name="name" value="{{ flow.name }}">
+  <label>Description</label><input type="text" name="description" value="{{ data.description }}">
+  <div class="row" style="margin-top:10px">
+    {% for d in weekdays %}<label class="check" style="margin:0"><input type="checkbox" name="day_{{ d }}" {{ 'checked' if d in (data.schedule.days or []) }}> {{ d }}</label>{% endfor %}
+  </div>
+  <label>Time ({{ settings.profile.timezone }}, HH:MM)</label><input type="time" name="time" value="{{ data.schedule.time }}">
+  <div class="check"><input type="checkbox" name="enabled" id="en" {{ 'checked' if flow.enabled }}><label for="en" style="margin:0">Enabled (runs on schedule)</label></div>
+  {% if data.last_fired %}<small>Last scheduled fire: {{ data.last_fired }}</small>{% endif %}
+</div>
+
+{% if fields %}
+<div class="card">
+  <h2>Prompts and parameters</h2>
+  <p class="muted">Placeholders like <code>$niche</code>, <code>$audience</code>, <code>$intel</code>, <code>$rules</code>, <code>$memory</code>, <code>$creators</code>, <code>$date</code>, <code>$day_type</code> are filled from Settings and the run. Lists (angles, lenses, refuters) are added or removed in the JSON below.</p>
+  {% for path, value in fields %}
+    <label>{{ path }}</label>
+    {% if value is sameas true or value is sameas false %}<select name="f:{{ path }}"><option value="true" {{ 'selected' if value }}>true</option><option value="false" {{ 'selected' if not value }}>false</option></select>
+    {% elif value is number %}<input type="number" name="f:{{ path }}" value="{{ value }}">
+    {% elif value is string and (value|length > 80 or '\n' in value) %}<textarea name="f:{{ path }}" class="{{ 'big' if value|length > 400 }}">{{ value }}</textarea>
+    {% else %}<input type="text" name="f:{{ path }}" value="{{ value }}">{% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+<div style="margin:0 0 16px"><button type="submit">Save flow</button></div>
+</form>
+
+<div class="card">
+  <h2>Raw JSON (add or remove angles, lenses, refuters)</h2>
+  <form method="post" action="/flows/{{ flow.slug }}">
+    <input type="hidden" name="name" value="{{ flow.name }}"><input type="hidden" name="time" value="{{ data.schedule.time }}">
+    {% for d in (data.schedule.days or []) %}<input type="hidden" name="day_{{ d }}" value="on">{% endfor %}
+    {% if flow.enabled %}<input type="hidden" name="enabled" value="on">{% endif %}
+    <textarea name="raw" class="big">{{ data|tojson_pretty }}</textarea>
+    <div style="margin-top:8px"><button class="secondary" type="submit">Save JSON</button></div>
+  </form>
+</div>
+{% endblock %}

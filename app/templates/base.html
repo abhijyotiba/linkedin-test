@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}LinkedIn Studio{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+{% if settings is not none %}
+<nav>
+  <span class="brand">LinkedIn Studio</span>
+  <a href="/" class="{{ 'active' if request.url.path == '/' else '' }}">Dashboard</a>
+  <a href="/kits" class="{{ 'active' if request.url.path.startswith('/kits') else '' }}">Kits</a>
+  <a href="/flows" class="{{ 'active' if request.url.path.startswith('/flows') else '' }}">Flows</a>
+  <a href="/runs" class="{{ 'active' if request.url.path.startswith('/runs') else '' }}">Runs</a>
+  <a href="/settings" class="{{ 'active' if request.url.path.startswith('/settings') else '' }}">Settings</a>
+  <span class="right">{{ settings.profile.name or 'profile not set' }} · {{ settings.profile.timezone }}{% if env.fake %} · <b class="warn">FAKE LLM</b>{% endif %} {% if env.password %}· <a href="/logout">log out</a>{% endif %}</span>
+</nav>
+{% endif %}
+<main>
+{% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

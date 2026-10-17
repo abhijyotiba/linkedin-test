@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+{% if needs_setup %}
+<div class="banner"><b>Set up first.</b>
+  {% if not env.anthropic %}Add <code>ANTHROPIC_API_KEY</code> to the environment. {% endif %}
+  {% if not settings.profile.niche %}Fill in your profile and niche in <a href="/settings">Settings</a>; every prompt is built from it. {% endif %}
+  Then run the <a href="/flows/daily_kit">Daily kit</a> flow once to see a kit.
+</div>
+{% endif %}
+<h1>Dashboard</h1>
+<p class="muted">{{ now.strftime('%A %d %b %Y, %H:%M') }} {{ settings.profile.timezone }} · LinkedIn {% if connected %}<span class="ok">connected as {{ li.name }}</span>{% else %}<span class="warn">not connected</span> (posts arrive by email / on the kit page){% endif %}</p>
+
+<div class="tiles">
+  <div class="card tile"><div class="lbl">Kits ready</div><div class="val">{{ kits|selectattr('status','equalto','approved')|list|length }}</div><div class="sub">approved, waiting for go-live</div></div>
+  <div class="card tile"><div class="lbl">Drafts</div><div class="val">{{ kits|selectattr('status','equalto','draft')|list|length }}</div><div class="sub">need your approval</div></div>
+  <div class="card tile"><div class="lbl">Posted</div><div class="val">{{ kits|selectattr('status','equalto','posted')|list|length }}</div><div class="sub">of the last {{ kits|length }}</div></div>
+  <div class="card tile"><div class="lbl">Impressions, 7 days</div><div class="val">{{ '{:,}'.format(imp7) }}</div><div class="sub">from numbers you entered</div></div>
+  <div class="card tile"><div class="lbl">LLM spend, 30 days</div><div class="val">${{ '%.2f'|format(cost30) }}</div><div class="sub">{{ settings.llm.model }}</div></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Next runs</h2>
+    <table>
+      {% for f in fires %}
+      <tr><td><a href="/flows/{{ f.flow.slug }}">{{ f.flow.name }}</a></td>
+          <td>{% if f.next %}{{ f.next.strftime('%a %d %b %H:%M') }}{% elif not f.flow.enabled %}<span class="muted">disabled</span>{% else %}<span class="muted">no schedule</span>{% endif %}</td>
+          <td><form class="inline" method="post" action="/flows/{{ f.flow.slug }}/run"><button class="secondary" type="submit">Run now</button></form></td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2>Impressions per post</h2>
+    {% if chart %}
+    {% set mx = chart|map(attribute=1)|max %}{% set mx = mx if mx > 0 else 1 %}
+    <svg class="chart" viewBox="0 0 600 220" preserveAspectRatio="none">
+      {% for date, imp, typ in chart %}{% set i = loop.index0 %}{% set n = chart|length %}{% set bw = (560 / n) %}{% set h = (imp / mx) * 170 %}
+      <rect x="{{ 30 + i * bw + 2 }}" y="{{ 190 - h }}" width="{{ bw - 4 }}" height="{{ h }}" rx="3" fill="{{ 'var(--bad)' if imp < 1000 else 'var(--accent)' }}"><title>{{ date }} · {{ typ }} · {{ '{:,}'.format(imp) }}</title></rect>
+      {% endfor %}
+      <line x1="30" y1="190" x2="590" y2="190" stroke="var(--line)"/>
+      <text x="0" y="24" font-size="11" fill="var(--muted)">{{ '{:,}'.format(mx) }}</text>
+      <text x="0" y="192" font-size="11" fill="var(--muted)">0</text>
+    </svg>
+    <small>Red bars are under 1,000 impressions (the kill threshold). Hover a bar for the date and type.</small>
+    {% else %}<p class="muted">No numbers yet. Open a posted kit and enter its impressions, reactions and comments.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recent kits</h2>
+  <div class="wrap"><table>
+    <tr><th>Date</th><th>Type</th><th>Hook</th><th>Winner</th><th>Status</th><th>Impressions</th></tr>
+    {% for k in kits %}{% set d = k.data %}
+    <tr><td><a href="/kits/{{ k.date }}">{{ k.date }}</a></td><td>{{ k.day_type }}</td><td>{{ d.post.hook if d.post else '' }}</td>
+        <td>{{ d.pipeline.winner if d.pipeline else 'hand-written' }}{% if d.pipeline %} <small>({{ d.pipeline.corrections }} fixes)</small>{% endif %}</td>
+        <td><span class="pill {{ 'ok' if k.status == 'posted' else 'warn' if k.status == 'approved' else '' }}">{{ k.status }}</span>{% if d.lint %} <span class="pill bad">lint {{ d.lint|length }}</span>{% endif %}</td>
+        <td>{{ '{:,}'.format(metrics[k.date].impressions) if k.date in metrics and metrics[k.date].impressions is not none else '' }}</td></tr>
+    {% else %}<tr><td colspan="6" class="muted">No kits yet. Run the Daily kit flow.</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Recent runs</h2>
+  <table>
+    <tr><th>#</th><th>Flow</th><th>Status</th><th>Started</th><th>Cost</th><th>Result</th></tr>
+    {% for r in runs %}
+    <tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td>{{ r.flow_slug }}</td>
+        <td><span class="pill {{ 'ok' if r.status == 'done' else 'bad' if r.status == 'failed' else 'warn' }}">{{ r.status }}</span></td>
+        <td>{{ r.started_at.strftime('%d %b %H:%M') }} UTC</td><td>${{ '%.3f'|format(r.cost_usd or 0) }}</td>
+        <td>{{ r.error[:90] if r.error else (r.log[-1].message[:90] if r.log else '') }}</td></tr>
+    {% else %}<tr><td colspan="6" class="muted">Nothing has run yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

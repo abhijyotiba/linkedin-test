@@ -1,4 +1,5 @@
 .env
 __pycache__/
 *.pyc
-assets/face.png
+*.db
+.pytest_cache/

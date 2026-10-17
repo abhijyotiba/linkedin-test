@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ kit.date }} · LinkedIn Studio{% endblock %}
+{% block content %}
+<h1>{{ kit.date }} · {{ kit.day_type }} · <span class="pill {{ 'ok' if kit.status == 'posted' else 'warn' if kit.status == 'approved' else '' }}">{{ kit.status }}</span></h1>
+<p class="muted">{% if data.pipeline %}Winner: {{ data.pipeline.winner }} · scores {% for s in data.pipeline.scores %}{{ s.angle }} {{ s.total }}{{ ', ' if not loop.last }}{% endfor %} · {{ data.pipeline.corrections }} fact corrections{% else %}Hand-written kit{% endif %}
+  {% if kit.post_urn %} · <a href="https://www.linkedin.com/feed/update/{{ kit.post_urn }}/" target="_blank" rel="noopener">open on LinkedIn</a>{% endif %}</p>
+
+{% if lint %}<div class="banner"><b>Quality gates:</b> {% for v in lint %}{{ v }}{{ '; ' if not loop.last }}{% endfor %}. Edit below and save; the gates re-run.</div>{% endif %}
+
+<div class="row" style="margin-bottom:16px">
+  <form class="inline" method="post" action="/kits/{{ kit.date }}/status">{% if kit.status != 'approved' and kit.status != 'posted' %}<input type="hidden" name="status" value="approved"><button type="submit">Approve</button>{% endif %}</form>
+  <form class="inline" method="post" action="/kits/{{ kit.date }}/status"><input type="hidden" name="status" value="draft">{% if kit.status == 'approved' %}<button class="secondary" type="submit">Back to draft</button>{% endif %}</form>
+  <form class="inline" method="post" action="/kits/{{ kit.date }}/publish"><button class="secondary" type="submit" {% if kit.status == 'posted' %}disabled{% endif %}>Publish now via LinkedIn</button></form>
+  {% if data.carousel %}<a class="btn secondary" href="/kits/{{ kit.date }}/carousel.pdf" target="_blank">Carousel PDF</a>{% endif %}
+  <a class="btn secondary" href="/kits/{{ kit.date }}/brief" target="_blank">Full kit (print view)</a>
+  <form class="inline" method="post" action="/kits/{{ kit.date }}/delete" onsubmit="return confirm('Delete this kit?')"><button class="danger" type="submit">Delete</button></form>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Post</h2>
+    <form method="post" action="/kits/{{ kit.date }}">
+      <label>Hook (line 1, max 7 words, not a question)</label><input type="text" name="hook" value="{{ data.post.hook }}">
+      <label>Post text (starts with the hook; 600 to 1300 chars)</label><textarea name="text" class="big">{{ data.post.text }}</textarea>
+      <label>Self-comment 1 (surprising detail)</label><textarea name="self1">{{ data.self_comments[0] if data.self_comments else '' }}</textarea>
+      <label>Self-comment 2 (question to readers)</label><textarea name="self2">{{ data.self_comments[1] if data.self_comments|length > 1 else '' }}</textarea>
+      <label>Day type</label><select name="day_type">{% for t in day_types %}<option value="{{ t }}" {{ 'selected' if t == kit.day_type }}>{{ t }}</option>{% endfor %}</select>
+      <div style="margin-top:12px"><button type="submit">Save</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Mark as posted by hand / enter numbers</h2>
+    <form method="post" action="/kits/{{ kit.date }}/status">
+      <input type="hidden" name="status" value="posted">
+      <label>Post URN or URL (optional)</label><input type="text" name="post_urn" value="{{ kit.post_urn or '' }}" placeholder="urn:li:share:123">
+      <div style="margin-top:8px"><button class="secondary" type="submit">Mark posted</button></div>
+    </form>
+    <form method="post" action="/kits/{{ kit.date }}/metrics">
+      <div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+        {% for f in fields %}<div><label>{{ f.replace('_',' ') }}</label><input type="text" name="{{ f }}" value="{{ metric[f] if metric and metric[f] is not none else '' }}" inputmode="numeric"></div>{% endfor %}
+      </div>
+      <button type="submit">Save numbers</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Everything else in this kit</h2>
+  {{ brief|safe }}
+</div>
+
+<div class="card">
+  <h2>Raw JSON (advanced)</h2>
+  <form method="post" action="/kits/{{ kit.date }}">
+    <input type="hidden" name="day_type" value="{{ kit.day_type }}">
+    <textarea name="raw" class="big">{{ data|tojson_pretty }}</textarea>
+    <div style="margin-top:8px"><button class="secondary" type="submit">Save JSON</button></div>
+  </form>
+</div>
+{% endblock %}
