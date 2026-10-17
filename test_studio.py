@@ -25,4 +25,12 @@ csvp.write_text("date,post_type,impressions,reactions,comments,reposts,profile_v
                 "2026-01-01,story,800,,,,,,,\n2026-01-08,story,900,,,,,,,\n2026-01-02,carousel,6000,,,,,,,\n")
 v = studio.metrics(csvp)
 assert v["story"].startswith("KILL") and v["carousel"].startswith("DOUBLE"), v
-print("OK", pdf, len(data), "bytes")
+# quality gates: the minimal sample must fail (counts), a real kit must pass
+v = studio.lint(j)
+assert any("engagement_comments" in x for x in v) and any("chars" in x for x in v), v
+kits = sorted((Path(__file__).parent / "content").glob("2*.json"))
+for k in kits:
+    assert studio.lint(k) == [], f"{k} fails lint"
+mem = studio.memory()
+assert mem.read_text().count("|") >= 5 * (len(kits) + 1), "memory table"
+print("OK", pdf, len(data), "bytes;", len(kits), "kit(s) lint clean")

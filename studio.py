@@ -7,6 +7,10 @@
   python studio.py brief   content/2026-10-17.json   # -> HTML email body on stdout
   python studio.py metrics                           # -> weekly report from data/metrics.csv
   python studio.py auth                              # -> one-time LinkedIn OAuth, writes .env
+  python studio.py lint    content/2026-10-17.json   # -> quality gates (hook, length, links, counts); exit 1 on violation
+  python studio.py run     content/2026-10-17.json   # -> render + lint + memory, the daily one-shot
+  python studio.py memory                            # -> data/memory.md from all kits + metrics (anti-repetition)
+  python studio.py doctor                            # -> preflight: deps, fonts, LinkedIn token/expiry, git push
 
 Deps: Pillow, PyYAML. Everything else is stdlib.
 """
@@ -180,15 +184,27 @@ def _headers(extra=None):
     return h
 
 
-def _call(method, url, body=None, headers=None, raw=None):
+def _call(method, url, body=None, headers=None, raw=None, tries=4):
+    """HTTP with retry on 429/5xx (2,4,8s). 401 => token expired. Exits with the LinkedIn error body otherwise."""
+    import time
     data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
-    req = urllib.request.Request(url, data=data, method=method, headers=headers or _headers())
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            txt = r.read().decode() or "{}"
-            return (json.loads(txt) if txt.strip().startswith("{") else txt), dict(r.headers)
-    except urllib.error.HTTPError as e:
-        sys.exit(f"LinkedIn {e.code} on {method} {url}\n{e.read().decode()[:2000]}")
+    for attempt in range(tries):
+        req = urllib.request.Request(url, data=data, method=method, headers=headers or _headers())
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                txt = r.read().decode() or "{}"
+                return (json.loads(txt) if txt.strip().startswith("{") else txt), dict(r.headers)
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode()[:2000]
+            if e.code == 401:
+                sys.exit("LinkedIn 401: token expired or invalid. Run `python studio.py auth` and update the secret.")
+            if e.code in (429, 500, 502, 503, 504) and attempt < tries - 1:
+                time.sleep(2 ** (attempt + 1)); continue
+            sys.exit(f"LinkedIn {e.code} on {method} {url}\n{msg}")
+        except (urllib.error.URLError, TimeoutError) as e:
+            if attempt < tries - 1:
+                time.sleep(2 ** (attempt + 1)); continue
+            sys.exit(f"LinkedIn unreachable ({e}). In the cloud env allow api.linkedin.com under Network access.")
 
 
 def publish(path, dry=False):
@@ -330,8 +346,142 @@ def metrics(csv_path=None):
     return verdicts
 
 
+# ------------------------------------------------------------------- lint ----
+REQUIRED = {"engagement_comments": 10, "connection_requests": 10, "dms": 5, "ideas_bank": 5, "intel": 3}
+MIN_CHARS, MAX_CHARS = 600, 1300
+
+
+def lint(path):
+    """Quality gates for a kit JSON. Prints one violation per line; exit 1 if any. These encode what LinkedIn's
+    2026 ranking rewards (hook, dwell, specificity, no external links) and what the kit email needs."""
+    c = json.loads(Path(path).read_text())
+    cfg = _cfg()
+    v = []
+    post = c.get("post", {})
+    text, hook = post.get("text", ""), post.get("hook", "")
+    if not text or not hook:
+        v.append("post.text and post.hook are required")
+    if len(hook.split()) > 7:
+        v.append(f"hook has {len(hook.split())} words (max 7)")
+    if hook and text and not text.startswith(hook):
+        v.append("post.text must start with post.hook")
+    if "?" in hook:
+        v.append("hook must not be a question")
+    if not MIN_CHARS <= len(text) <= MAX_CHARS:
+        v.append(f"post.text is {len(text)} chars (want {MIN_CHARS}-{MAX_CHARS})")
+    if "\u2014" in text or "\u2014" in hook:
+        v.append("no em-dashes in the post")
+    if "http://" in text or "https://" in text:
+        v.append("no external links in the post (reach penalty); put links in a comment")
+    if text.count("#") > 3:
+        v.append("max 3 hashtags")
+    low = text.lower()
+    for b in cfg.get("banned_phrases", []):
+        if b.lower() in low:
+            v.append(f"banned phrase: {b!r}")
+    if len(c.get("self_comments", [])) < 2:
+        v.append("need 2 self_comments")
+    for k, n in REQUIRED.items():
+        if len(c.get(k, [])) < n:
+            v.append(f"{k}: {len(c.get(k, []))} (need {n})")
+    for i, x in enumerate(c.get("engagement_comments", [])):
+        lines = [l for l in x.get("comment", "").split("\n") if l.strip()]
+        if not 2 <= len(lines) <= 4:
+            v.append(f"engagement_comments[{i}] has {len(lines)} lines (want 2-4)")
+        if x.get("comment", "").lower().startswith(("great post", "nice post", "love this")):
+            v.append(f"engagement_comments[{i}] opens with filler")
+    for i, x in enumerate(c.get("connection_requests", [])):
+        if len(x.get("message", "")) > 300:
+            v.append(f"connection_requests[{i}] message > 300 chars")
+    car = c.get("carousel")
+    if car:
+        if not 5 <= len(car.get("slides", [])) <= 8:
+            v.append(f"carousel has {len(car.get('slides', []))} slides (want 5-8)")
+        if len(car.get("title", "").split()) > 10:
+            v.append("carousel title > 10 words")
+        for i, sl in enumerate(car.get("slides", [])):
+            if len(sl.get("title", "").split()) > 8:
+                v.append(f"slide {i + 1} title > 8 words")
+            if len(sl.get("body", "").split()) > 40:
+                v.append(f"slide {i + 1} body > 40 words")
+    for i in c.get("intel", []):
+        if "http" not in i:
+            v.append(f"intel without source url: {i[:50]!r}")
+    print("\n".join(v) if v else f"lint ok: {path}")
+    return v
+
+
+def memory():
+    """Rebuild data/memory.md from every kit + metrics so the writers never repeat themselves and build on winners."""
+    rows = {}
+    mp = ROOT / "data" / "metrics.csv"
+    if mp.exists():
+        for r in csv.DictReader(mp.open()):
+            rows[r["date"]] = r
+    lines = ["# Studio memory (auto-generated by `python studio.py memory`; do not edit)", "",
+             "| date | type | hook | carousel | result |", "|---|---|---|---|---|"]
+    topics = []
+    for p in sorted((ROOT / "content").glob("2*.json")):
+        c = json.loads(p.read_text())
+        m = rows.get(c.get("date"), {})
+        res = f"{m.get('impressions', '?')} imp / {m.get('comments', '?')} cmts" if m else "not posted yet"
+        car = (c.get("carousel") or {}).get("title", "")
+        lines.append(f"| {c.get('date')} | {c.get('day_type')} | {c['post'].get('hook', '')} | {car} | {res} |")
+        topics += [c["post"].get("hook", "")] + [i for i in c.get("ideas_bank", [])]
+    lines += ["", "## Hooks and ideas already used or banked (do not repeat, do build on winners)", ""] + [f"- {t}" for t in topics if t]
+    out = ROOT / "data" / "memory.md"
+    out.write_text("\n".join(lines) + "\n")
+    print(out)
+    return out
+
+
+def doctor():
+    """Preflight. Exit 1 on hard failures (deps, fonts); warnings for LinkedIn and git."""
+    _load_env()
+    hard, warn = [], []
+    try:
+        import PIL, yaml  # noqa
+    except ImportError as e:
+        hard.append(f"missing dependency: {e}; run pip install -r requirements.txt")
+    if not any((Path(d) / n).exists() for d in FONT_DIRS for n in ("Inter-Bold.otf", "DejaVuSans-Bold.ttf")):
+        hard.append("no TTF/OTF font found; copy Inter-Bold.otf into assets/")
+    tok, urn, exp = os.environ.get("LINKEDIN_ACCESS_TOKEN"), os.environ.get("LINKEDIN_PERSON_URN"), os.environ.get("LINKEDIN_TOKEN_EXPIRES")
+    if not (tok and urn):
+        warn.append("LinkedIn not connected: auto-publish off (README > Connect LinkedIn)")
+    else:
+        if exp:
+            days = (dt.date.fromisoformat(exp) - dt.date.today()).days
+            (hard if days < 0 else warn if days <= 7 else []).append(f"LinkedIn token expires in {days} days ({exp}); run `python studio.py auth`")
+        try:
+            urllib.request.urlopen(urllib.request.Request(f"{API}/v2/userinfo", headers={"Authorization": "Bearer " + tok}), timeout=8)
+        except urllib.error.HTTPError as e:
+            (hard if e.code == 401 else warn).append(f"LinkedIn API answered {e.code}")
+        except Exception as e:
+            warn.append(f"api.linkedin.com unreachable from here ({type(e).__name__}); allow it under Network access")
+    import subprocess
+    r = subprocess.run(["git", "push", "--dry-run", "origin", "HEAD"], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode:
+        warn.append("git push refused: " + (r.stderr.strip().splitlines() or ["?"])[-1][:120])
+    for x in hard:
+        print("FAIL", x)
+    for x in warn:
+        print("WARN", x)
+    print("doctor:", "FAIL" if hard else "ok", f"({len(warn)} warnings)")
+    return not hard
+
+
+def run(path):
+    """render (if carousel) + lint + memory. The one command the daily run calls."""
+    render(path)
+    v = lint(path)
+    memory()
+    if v:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cmd, *args = sys.argv[1:] or ["help"]
     {"render": lambda: render(args[0]), "publish": lambda: publish(args[0], dry="--dry" in args),
      "comment": lambda: comment(args[0], args[1]), "brief": lambda: brief(args[0]),
-     "metrics": lambda: metrics(*args), "auth": auth}.get(cmd, lambda: print(__doc__))()
+     "metrics": lambda: metrics(*args), "auth": auth, "lint": lambda: sys.exit(1 if lint(args[0]) else 0),
+     "memory": memory, "doctor": lambda: sys.exit(0 if doctor() else 1), "run": lambda: run(args[0])}.get(cmd, lambda: print(__doc__))()
