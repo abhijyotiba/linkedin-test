@@ -17,7 +17,7 @@ python test_studio.py
 ```
 If that branch no longer exists on origin, use the default branch. Read `config.yaml` fully. Dates and times are in `config.timezone`. GitHub is the single source of truth; there is no other copy to restore from.
 
-**Commits:** always `git diff --quiet HEAD -- content data config.yaml || git commit -m "..."`; "nothing to commit" is success, not a failure.
+**Commits:** always `git add content data site config.yaml && git diff --quiet HEAD -- content data site config.yaml || git commit -m "..."`; "nothing to commit" is success, not a failure.
 **Push fallback** (`git push` refused): use the GitHub MCP `push_files` (owner `abhijyotiba`, repo `linkedin-test`, branch above) with the same files and message, and say in the summary that the Claude GitHub App needs reinstalling.
 **Email fallback:** if the Gmail `send_message` tool is unavailable, put the full kit in your final message.
 **Failure protocol:** if a step fails twice (doctor `FAIL`, a crash, a pipeline error), email `config.brief_to` with subject `STUDIO FAILED · <run> · <date>`, the exact error, and what you tried; then stop. A LinkedIn `WARN` is never a failure: it means take the manual path in section 2.
@@ -34,7 +34,7 @@ If `content/<date>.json` already exists with `post.text` (a hand-built or earlie
    (`name: "linkedin-kit"` also works in sessions started after the file existed.) It runs 4 researchers (niche news, LinkedIn platform, India+US market, target creators), 4 ghostwriters on different angles, 3 judges per candidate (hook/dwell, credibility, audience fit), 2 fact-checkers that attack every number and claim in the winner plus a correction pass, then the Engagement Engine (10 creator comments) and Network Builder (10 connection requests, 5 DMs, 5 idea hooks). It writes `content/<date>.json`, runs `python studio.py run` (lint, then pdf_url + carousel render, then memory) and returns the lint result, judge scores and any formatting edits the final agent made.
    If the Workflow tool is unavailable, do the same work with the Agent tool (4 drafts, score them, pick one, fact-check, assemble), write the JSON in the schema below, then `python studio.py run content/<date>.json`.
 2. **Gate.** `python studio.py lint content/<date>.json` must print `lint ok`. Fix violations by hand if any remain, then `python studio.py run content/<date>.json` again (it sets `pdf_url`, renders and rebuilds `data/memory.md`).
-3. **Persist.** `git add content data && git diff --quiet HEAD -- content data || git commit -m "kit: <date> <day_type> (<winner angle>)"` then `git push -u origin HEAD`.
+3. **Persist.** `git add content data site && git diff --quiet HEAD -- content data site || git commit -m "kit: <date> <day_type> (<winner angle>)"` then `git push -u origin HEAD`. (`site/data.json` feeds the tracker dashboard at https://claude.ai/artifact/3vAMBoZ7ajyLBnW1hXMyef; `studio.py run` already rewrote it.)
 4. **Email the kit** with Gmail `send_message`: `to` = `config.brief_to`, `subject` = `LinkedIn kit · <date> · <hook>`, `htmlBody` = output of `python studio.py brief content/<date>.json`. No attachments; the PDF link in the brief points at GitHub.
 5. Final message: date, day_type, winner angle and scores, hook, corrections applied, commit hash.
 
@@ -46,7 +46,8 @@ Date = today in `config.timezone`. If `content/<date>.json` is missing, do the E
   ```bash
   python studio.py publish content/<date>.json          # prints urn:li:share:... ; refuses to post the same date twice
   python studio.py comment "<urn>" "<self_comments[0]>"  # may 403 on some apps; ignore failure
-  git add data && git diff --quiet HEAD -- data || git commit -m "live: <date>"; git push -u origin HEAD
+  python studio.py manifest                              # tracker dashboard picks up the posted URN
+  git add data site && git diff --quiet HEAD -- data site || git commit -m "live: <date>"; git push -u origin HEAD
   ```
   Email `to` = `config.brief_to`, subject `LIVE · <hook>`: link `https://www.linkedin.com/feed/update/<urn>/`, the second self-comment to post by hand, the 10 creator comments, and the rule: reply to every comment in the first 60 minutes with a question, then send the 5 DMs from the kit.
   If `publish` exits with an error, do not re-run it: check `data/posted.jsonl` and the error text, then fall through to the manual path and say why in the email.
@@ -56,7 +57,7 @@ Date = today in `config.timezone`. If `content/<date>.json` is missing, do the E
 ## 3. SUNDAY run — Analytics & Lead agent (Agent 6)
 
 1. **Ingest numbers from email.** For each address in `config.brief_to`, Gmail `search_threads` with query `from:<address> newer_than:8d subject:{"LinkedIn kit" "LinkedIn weekly" LIVE "POST NOW"}`, then `get_thread` (PLAIN_TEXT). In each thread, the studio's own messages are the ones whose body starts with the kit HTML or the weekly report; only messages dated after those count as the person's reply. Any reply containing numbers for a post (impressions, views, reactions, comments, reposts, profile views, invites sent/accepted, leads, in any format) becomes one row per post date in `data/metrics.csv` (`date,post_type,impressions,reactions,comments,reposts,profile_views,connections_sent,connections_accepted,leads`; unknown cells empty; `post_type` from the matching kit). Never overwrite a row that already has impressions. Commit.
-2. `python studio.py metrics` then `python studio.py memory`. `metrics` prints the verdicts (KILL when 2 of a type's last 4 posts are under 1,000 impressions; DOUBLE when a type averages over 5,000) and a `proposed weekly_mix` line (a doubled type takes a killed type's day, else the lowest-average day; a killed type's day goes to the best type; always 5 slots).
+2. `python studio.py metrics`, then `python studio.py memory` and `python studio.py manifest` (the tracker dashboard reads `site/data.json`). `metrics` prints the verdicts (KILL when 2 of a type's last 4 posts are under 1,000 impressions; DOUBLE when a type averages over 5,000) and a `proposed weekly_mix` line (a doubled type takes a killed type's day, else the lowest-average day; a killed type's day goes to the best type; always 5 slots).
 3. **Decide.** Copy the proposed `weekly_mix` into `config.yaml` and commit (skip when it equals the current one).
 4. **Email** subject `LinkedIn weekly · <date>`: the metrics table, verdicts, next week's day-type plan, connection acceptance %, leads, and this exact ask: "Reply to this email with last week's numbers per post (date, impressions, reactions, comments, profile views, invites sent/accepted, leads) and the studio files them." If the CSV has no rows for the last 7 days, say so plainly.
 5. Push (fallback in section 0).

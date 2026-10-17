@@ -1,5 +1,7 @@
 # LinkedIn Studio
 
+**Tracker dashboard:** https://claude.ai/artifact/3vAMBoZ7ajyLBnW1hXMyef (kits, judge scores, posted status, impressions, weekly mix, next runs; reads `site/data.json` from this repo live through your GitHub connection).
+
 An autonomous 6-agent LinkedIn growth system. Claude runs it on a schedule, writes the content, renders the carousel, emails you a daily kit, and publishes the post for you once LinkedIn is connected.
 
 ```
@@ -73,6 +75,7 @@ python studio.py brief   content/2026-10-20.json   # the HTML kit
 python studio.py publish content/2026-10-20.json   # post it (needs .env)
 python studio.py comment urn:li:share:123 "text"   # comment as you
 python studio.py metrics                           # weekly report
+python studio.py manifest                          # site/data.json, what the tracker dashboard shows
 python test_studio.py                              # self-check
 ```
 
